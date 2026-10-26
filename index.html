@@ -1,0 +1,168 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Live Meeting — Demo</title>
+<style>
+:root{--navy:#063B78;--blue:#0878D1;--light:#EAF5FF;--bg:#f4f8fc;--surface:#fff;--ink:#12283e;--muted:#5d6f84;--line:#dbe7f3}
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+header{background:linear-gradient(100deg,#04294f,#063B78 55%,#0878D1);color:#fff;padding:16px 20px}
+header a{color:#fff;text-decoration:none}nav{display:flex;gap:14px;flex-wrap:wrap;margin-top:8px}
+nav a{color:#dbeeff;cursor:pointer}main{max-width:980px;margin:0 auto;padding:24px 20px}
+.hero{background:linear-gradient(125deg,#04294f,#063B78 40%,#0878D1 75%,#5db2f0);color:#fff;border-radius:20px;padding:32px;margin-bottom:22px}
+.hero h1{margin:0 0 8px}.hero p{color:#dbeeff}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px;margin-bottom:18px;box-shadow:0 10px 28px rgba(6,59,120,.08)}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+label{display:block;margin:10px 0 4px;font-weight:600}
+input,select,textarea{width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;font:inherit}
+button,.btn{display:inline-block;background:var(--blue);color:#fff;border:0;border-radius:10px;padding:11px 20px;font:inherit;cursor:pointer;text-decoration:none}
+button.secondary,.btn.secondary{background:#fff;color:var(--navy);border:1px solid var(--line)}
+table{width:100%;border-collapse:collapse}th,td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:left}
+.table-wrap{overflow-x:auto}.flash{background:#fff3cd;border:1px solid #ffe08a;padding:10px 14px;border-radius:10px}
+.pill{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.4);border-radius:999px;padding:3px 10px;font-size:.85rem}
+.muted{color:var(--muted)}footer{padding:20px;text-align:center;color:var(--muted)}
+@media(max-width:520px){.grid{grid-template-columns:1fr}main{padding:16px 12px}.hero{padding:22px 18px}}
+</style></head><body>
+<header><a href="#" onclick="showView('home');return false;"><strong>Live Meeting</strong></a>
+<div>Text chat, mail and appointments — in one place.</div>
+<nav id="topnav"></nav></header>
+<main><div id="flash"></div><div id="view"></div></main>
+<footer>Live Meeting demo &middot; Text chat only — this is not video calling &middot; Demo only: accounts, mail, appointments and chat live only in this browser.</footer>
+<script>
+var KEY="lm_demo_db_v1";
+var MASTER_KINDS=["country","state","city","industry","income","interest","occupation"];
+function hashPw(s){var h=5381;for(var i=0;i<s.length;i++){h=((h<<5)+h+s.charCodeAt(i))>>>0;}return "h"+h.toString(16);}
+function validPw(p){return p.length>=8&&/[A-Z]/.test(p)&&/[a-z]/.test(p)&&/[0-9]/.test(p);}
+function validEmail(e){return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e);}
+function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
+function seed(){
+  return {users:[
+    {id:1,name:"Admin",email:"admin@livemeeting.demo",pw:hashPw("Admin123"),role:"admin",city:"Delhi",country:"India",state:"",industry:"",occupation:"",interest:"",income:""},
+    {id:2,name:"Priya Verma",email:"priya@demo.local",pw:hashPw("Demo1234"),role:"user",city:"Lucknow",country:"India",state:"Uttar Pradesh",industry:"IT",occupation:"Developer",interest:"Music",income:"5-10 LPA"},
+    {id:3,name:"Rahul Sharma",email:"rahul@demo.local",pw:hashPw("Demo1234"),role:"user",city:"Delhi",country:"India",state:"Delhi",industry:"Education",occupation:"Teacher",interest:"Sports",income:"Below 5 LPA"}
+  ],
+  masters:[{kind:"country",name:"India"},{kind:"country",name:"USA"},{kind:"country",name:"UK"},
+    {kind:"state",name:"Uttar Pradesh"},{kind:"state",name:"Delhi"},{kind:"state",name:"Maharashtra"},
+    {kind:"city",name:"Lucknow"},{kind:"city",name:"Delhi"},{kind:"city",name:"Mumbai"},
+    {kind:"industry",name:"IT"},{kind:"industry",name:"Healthcare"},{kind:"industry",name:"Education"},
+    {kind:"income",name:"Below 5 LPA"},{kind:"income",name:"5-10 LPA"},{kind:"income",name:"Above 10 LPA"},
+    {kind:"interest",name:"Music"},{kind:"interest",name:"Sports"},{kind:"interest",name:"Reading"},
+    {kind:"occupation",name:"Developer"},{kind:"occupation",name:"Teacher"},{kind:"occupation",name:"Doctor"}],
+  rooms:[{id:1,name:"General Chat"}],
+  messages:[{room:1,user:2,body:"Hello everyone! This is a text chat room.",at:"2026-10-26 10:00"}],
+  mails:[
+    {id:1,from:1,to:2,subject:"Welcome to Live Meeting",body:"Welcome! Use Mail for messages, Appointments for meetings, and Chat rooms for live text chat.",sf:"sent",rf:"inbox",at:"2026-10-26 09:00"},
+    {id:2,from:2,to:3,subject:"Hello",body:"Hi Rahul, shall we meet tomorrow to discuss the project?",sf:"sent",rf:"inbox",at:"2026-10-26 09:30"},
+    {id:3,from:2,to:null,subject:"Draft note",body:"This is a saved draft.",sf:"draft",rf:"draft",at:"2026-10-26 10:00"}
+  ],
+  appts:[{id:1,user:2,title:"Project discussion",with:"Rahul Sharma",date:"2026-11-05",time:"11:00",notes:"Discuss the project plan.",status:"Scheduled"}],
+  feedback:[],logins:[],nextId:10,current:null};
+}
+var DB;
+try{DB=JSON.parse(localStorage.getItem(KEY))||seed();}catch(e){DB=seed();}
+if(!DB.users){DB=seed();}
+function save(){localStorage.setItem(KEY,JSON.stringify(DB));}
+function me(){return DB.users.filter(function(u){return u.email===DB.current;})[0]||null;}
+function userById(id){return DB.users.filter(function(u){return u.id===id;})[0]||null;}
+function userByEmail(e){return DB.users.filter(function(u){return u.email===e;})[0]||null;}
+function flash(m){document.getElementById("flash").innerHTML='<p class="flash">'+esc(m)+'</p>';}
+function nav(){
+  var u=me(),links=['<a onclick="showView(\'home\')">Home</a>','<a onclick="showView(\'chat\')">Chat</a>','<a onclick="showView(\'appts\')">Appointments</a>','<a onclick="showView(\'mail\')">Mail</a>','<a onclick="showView(\'feedback\')">Feedback</a>','<a onclick="showView(\'about\')">About</a>'];
+  if(u){links.push('<a onclick="showView(\'profile\')">Profile</a>');
+    if(u.role==="admin"){links.push('<a onclick="showView(\'masters\')">Masters</a>');links.push('<a onclick="showView(\'admin\')">Admin</a>');}
+    links.push('<span class="pill">'+esc(u.name)+' ('+esc(u.role)+')</span>');
+    links.push('<a onclick="logout()">Logout</a>');
+  }else{links.push('<a onclick="showView(\'auth\')">Login</a>');links.push('<a onclick="showView(\'auth\')">Sign Up</a>');}
+  document.getElementById("topnav").innerHTML=links.join(" ");
+}
+function setView(html){document.getElementById("view").innerHTML=html;nav();}
+function logout(){DB.current=null;save();flash("Logged out.");showView("home");}
+function showView(v,arg){
+  var u=me();
+  if(v==="home"){
+    var rooms=DB.rooms.map(function(r){return '<div class="card"><h3>'+esc(r.name)+'</h3><p><button onclick="showView(\'room\','+r.id+')">Join chat</button></p></div>';}).join("");
+    setView('<div class="hero"><p>TEXT CHAT, MAIL &amp; APPOINTMENTS</p><h1>Meet, message and plan — in one place.</h1><p>Register, send internal mail, book appointments and join a live text chat room. This is text chat only, not video calling.</p><p><button onclick="showView(\'chat\')">Open Chat</button> <button class="secondary" onclick="showView(\'appts\')">Appointments</button></p></div>'
+    +'<div class="grid"><div class="card"><h3>Users</h3><p><b>'+DB.users.length+'</b></p></div><div class="card"><h3>Chat rooms</h3><p><b>'+DB.rooms.length+'</b></p></div><div class="card"><h3>Mail</h3><p><b>'+DB.mails.length+'</b></p></div><div class="card"><h3>Scheduled appointments</h3><p><b>'+DB.appts.filter(function(a){return a.status==="Scheduled";}).length+'</b></p></div></div>'
+    +'<h2>Chat rooms</h2><div class="grid">'+(rooms||"<p>No rooms yet.</p>")+'</div>'
+    +'<div class="card"><h2>What this is</h2><p class="muted">A browser demo of the Live Meeting web remake. The original used ASP.NET and SQL Server; this demo keeps the same features in your browser only. Chat here is live text chat in a room — it does not start a video call.</p></div>');
+  }else if(v==="about"){
+    setView('<div class="card"><h2>About Live Meeting</h2><p>Live Meeting is a small collaboration app: user accounts, internal mail, appointments with a calendar view, admin masters, feedback, and live text chat rooms. It is a student/demo remake of an ASP.NET Web Forms project.</p><p class="muted">No real contact details are published here. This is demo data only.</p></div>');
+  }else if(v==="auth"){
+    setView('<div class="card"><h2>Login</h2><form onsubmit="doLogin(event)"><label>Email</label><input id="li_email" type="email" required><label>Password</label><input id="li_pw" type="password" required><p><button>Log in</button></p></form><p class="muted">Demo admin: admin@livemeeting.demo / Admin123 (demo only).</p></div>'
+    +'<div class="card"><h2>Sign Up</h2><form onsubmit="doSignup(event)"><label>Full name</label><input id="su_name" required><label>Email</label><input id="su_email" type="email" required><label>Password</label><input id="su_pw" type="password" required><p class="muted">Password: 8+ characters with uppercase, lowercase and a digit.</p><p><button>Create account</button></p></form><p class="muted">Demo only: passwords are stored as a simple demo hash in this browser, never in plain text — this is not production-grade security.</p></div>');
+  }else if(v==="profile"){
+    if(!u){flash("Please log in first.");return showView("auth");}
+    setView('<div class="card"><h2>Profile</h2><p>'+esc(u.name)+' &middot; '+esc(u.email)+' &middot; '+esc(u.role)+'</p><form onsubmit="saveProfile(event)"><label>Full name</label><input id="pf_name" value="'+esc(u.name)+'" required><label>Country</label><input id="pf_country" value="'+esc(u.country)+'"><label>State</label><input id="pf_state" value="'+esc(u.state)+'"><label>City</label><input id="pf_city" value="'+esc(u.city)+'"><label>Industry</label><input id="pf_industry" value="'+esc(u.industry)+'"><label>Occupation</label><input id="pf_occ" value="'+esc(u.occupation)+'"><label>Interest</label><input id="pf_int" value="'+esc(u.interest)+'"><label>Income</label><input id="pf_inc" value="'+esc(u.income)+'"><p><button>Save profile</button></p></form></div>'
+    +'<div class="card"><h2>Change password</h2><form onsubmit="changePw(event)"><label>Current password</label><input id="cp_cur" type="password" required><label>New password</label><input id="cp_new" type="password" required><p><button>Change password</button></p></form></div>');
+  }else if(v==="mail"){
+    if(!u){flash("Please log in first.");return showView("auth");}
+    var folder=arg||"inbox";
+    var rows=DB.mails.filter(function(m){
+      if(folder==="inbox"){return m.to===u.id&&m.rf==="inbox";}
+      if(folder==="sent"){return m.from===u.id&&m.sf==="sent";}
+      if(folder==="draft"){return m.from===u.id&&m.sf==="draft";}
+      if(folder==="saved"){return (m.to===u.id&&m.rf==="saved")||(m.from===u.id&&m.sf==="saved");}
+      return false;
+    });
+    var tabs=["inbox","sent","draft","saved"].map(function(f){return '<button class="'+(f===folder?"":"secondary")+'" onclick="showView(\'mail\',\''+f+'\')">'+f.charAt(0).toUpperCase()+f.slice(1)+'</button>';}).join(" ");
+    var rowsHtml=rows.map(function(m){var s=userById(m.from);return '<tr><td><a href="#" onclick="showView(\'mailview\','+m.id+');return false;">'+esc(m.subject)+'</a></td><td>'+esc(s?s.name:"Draft")+'</td><td>'+esc(m.at)+'</td></tr>';}).join("");
+    setView('<div class="card"><h2>Mail — '+folder.charAt(0).toUpperCase()+folder.slice(1)+'</h2><p>'+tabs+' <button onclick="showView(\'compose\')">Compose</button></p><div class="table-wrap"><table><tr><th>Subject</th><th>From</th><th>Date</th></tr>'+(rowsHtml||'<tr><td colspan="3">No mail here yet.</td></tr>')+'</table></div></div>');
+  }else if(v==="compose"){
+    if(!u){flash("Please log in first.");return showView("auth");}
+    setView('<div class="card"><h2>Compose mail</h2><form onsubmit="sendMail(event,false)"><label>To (email)</label><input id="cm_to" type="email" required><label>Subject</label><input id="cm_sub"><label>Message</label><textarea id="cm_body" rows="6" required></textarea><p><button>Send</button> <button class="secondary" type="button" onclick="sendMail(null,true)">Save draft</button></p></form><p class="muted">Internal mail only — this does not send real email.</p></div>');
+  }else if(v==="mailview"){
+    if(!u){flash("Please log in first.");return showView("auth");}
+    var m=DB.mails.filter(function(x){return x.id===arg;})[0];
+    if(!m||(m.from!==u.id&&m.to!==u.id)){flash("Mail not found.");return showView("mail");}
+    var s=userById(m.from),r=userById(m.to);
+    setView('<div class="card"><h2>'+esc(m.subject)+'</h2><p class="muted">From: '+esc(s?s.name:"Draft")+'<br>To: '+esc(r?r.name:"Draft")+'<br>Date: '+esc(m.at)+'</p><p>'+esc(m.body)+'</p><p><button onclick="saveMail('+m.id+')">Save</button> <button class="secondary" onclick="deleteMail('+m.id+')">Delete</button></p><p><button class="secondary" onclick="showView(\'mail\')">Back to Mail</button></p></div>');
+  }else if(v==="appts"){
+    if(!u){flash("Please log in first.");return showView("auth");}
+    var sel=arg||"";
+    var rows=DB.appts.filter(function(a){return a.user===u.id&&(!sel||a.date===sel);});
+    var rowsHtml=rows.map(function(a){return '<tr><td>'+esc(a.title)+'</td><td>'+esc(a.with)+'</td><td>'+esc(a.date)+' '+esc(a.time)+'</td><td>'+esc(a.status)+'</td><td><button class="secondary" onclick="cancelAppt('+a.id+')">Cancel</button></td></tr>';}).join("");
+    setView('<div class="card"><h2>Appointments</h2><form onsubmit="event.preventDefault();showView(\'appts\',document.getElementById(\'cal_date\').value);"><label>Calendar — show date</label><input id="cal_date" type="date" value="'+esc(sel)+'"><p><button>Show</button> <button class="secondary" type="button" onclick="showView(\'newappt\')">New appointment</button></p></form><div class="table-wrap"><table><tr><th>Title</th><th>With</th><th>Date &amp; time</th><th>Status</th><th></th></tr>'+(rowsHtml||'<tr><td colspan="5">No appointments yet.</td></tr>')+'</table></div></div>');
+  }else if(v==="newappt"){
+    if(!u){flash("Please log in first.");return showView("auth");}
+    setView('<div class="card"><h2>New appointment</h2><form onsubmit="createAppt(event)"><label>Title</label><input id="ap_title" required><label>With (person)</label><input id="ap_with" required><label>Date</label><input id="ap_date" type="date" value="2026-11-05" required><label>Time</label><input id="ap_time" type="time" value="11:00" required><label>Notes</label><textarea id="ap_notes" rows="4"></textarea><p><button>Create appointment</button></p></form></div>');
+  }else if(v==="chat"){
+    if(!u){flash("Please log in first.");return showView("auth");}
+    var cards=DB.rooms.map(function(r){return '<div class="card"><h3>'+esc(r.name)+'</h3><p><button onclick="showView(\'room\','+r.id+')">Join chat</button></p></div>';}).join("");
+    setView('<div class="card"><h2>Chat rooms</h2><p class="muted">Text chat only — these rooms do not start a video call.</p><form onsubmit="createRoom(event)"><label>New room name</label><input id="room_name" required><p><button>Create room</button></p></form></div><div class="grid">'+(cards||"<p>No rooms yet.</p>")+'</div>');
+  }else if(v==="room"){
+    if(!u){flash("Please log in first.");return showView("auth");}
+    var room=DB.rooms.filter(function(r){return r.id===arg;})[0];
+    if(!room){flash("Room not found.");return showView("chat");}
+    var msgs=DB.messages.filter(function(m){return m.room===room.id;}).map(function(m){var s=userById(m.user);return '<p><b>'+esc(s?s.name:"?")+'</b> <span class="muted">'+esc(m.at)+'</span><br>'+esc(m.body)+'</p>';}).join("");
+    setView('<div class="card"><h2>'+esc(room.name)+'</h2><p class="muted">Text chat only — not a video meeting.</p><div>'+(msgs||"<p>No messages yet. Say hello!</p>")+'</div><form onsubmit="postChat(event,'+room.id+')"><label>Message</label><input id="chat_body" required><p><button>Send message</button> <button class="secondary" type="button" onclick="showView(\'chat\')">All rooms</button></p></form></div>');
+  }else if(v==="masters"){
+    if(!u||u.role!=="admin"){flash("Admin only.");return showView("home");}
+    var opts=MASTER_KINDS.map(function(k){return '<option value="'+k+'">'+k.charAt(0).toUpperCase()+k.slice(1)+'</option>';}).join("");
+    var rowsHtml=DB.masters.map(function(m,i){return '<tr><td>'+esc(m.kind)+'</td><td>'+esc(m.name)+'</td><td><button class="secondary" onclick="deleteMaster('+i+')">Delete</button></td></tr>';}).join("");
+    setView('<div class="card"><h2>Masters (admin only)</h2><form onsubmit="addMaster(event)"><label>Kind</label><select id="m_kind">'+opts+'</select><label>Name</label><input id="m_name" required><p><button>Add master</button></p></form><div class="table-wrap"><table><tr><th>Kind</th><th>Name</th><th></th></tr>'+(rowsHtml||'<tr><td colspan="3">No masters yet.</td></tr>')+'</table></div></div>');
+  }else if(v==="admin"){
+    if(!u||u.role!=="admin"){flash("Admin only.");return showView("home");}
+    var usersHtml=DB.users.map(function(x){return '<tr><td>'+x.id+'</td><td>'+esc(x.name)+'</td><td>'+esc(x.email)+'</td><td>'+esc(x.role)+'</td><td>'+esc(x.city)+'</td></tr>';}).join("");
+    var fbHtml=DB.feedback.map(function(f){return '<tr><td>'+esc(f.name)+'</td><td>'+esc(f.message)+'</td><td>'+esc(f.at)+'</td></tr>';}).join("");
+    var logHtml=DB.logins.map(function(l){var s=userById(l.user);return '<tr><td>'+esc(s?s.name:"?")+'</td><td>'+esc(l.at)+'</td></tr>';}).join("");
+    setView('<div class="card"><h2>Admin — Users</h2><div class="table-wrap"><table><tr><th>ID</th><th>Name</th><th>Email</th><th>Role</th><th>City</th></tr>'+usersHtml+'</table></div></div>'
+    +'<div class="card"><h2>Admin — Feedback</h2><div class="table-wrap"><table><tr><th>From</th><th>Message</th><th>Date</th></tr>'+(fbHtml||'<tr><td colspan="3">No feedback yet.</td></tr>')+'</table></div></div>'
+    +'<div class="card"><h2>Admin — Login history</h2><div class="table-wrap"><table><tr><th>User</th><th>Login at</th></tr>'+(logHtml||'<tr><td colspan="2">No logins yet.</td></tr>')+'</table></div></div>');
+  }else if(v==="feedback"){
+    setView('<div class="card"><h2>Feedback</h2><form onsubmit="sendFeedback(event)"><label>Your name</label><input id="fb_name" value="'+esc(u?u.name:"")+'"><label>Message</label><textarea id="fb_msg" rows="5" required></textarea><p><button>Send feedback</button></p></form></div>');
+  }
+}
+function doLogin(e){e.preventDefault();var em=document.getElementById("li_email").value.trim().toLowerCase(),pw=document.getElementById("li_pw").value;var u=userByEmail(em);if(u&&u.pw===hashPw(pw)){DB.current=em;DB.logins.push({user:u.id,at:new Date().toISOString().slice(0,16).replace("T"," ")});save();flash("Welcome, "+u.name+"!");showView("home");}else{flash("Invalid email or password.");}}
+function doSignup(e){e.preventDefault();var n=document.getElementById("su_name").value.trim(),em=document.getElementById("su_email").value.trim().toLowerCase(),pw=document.getElementById("su_pw").value;if(!n||!validEmail(em)){flash("Please enter your name and a valid email address.");return;}if(!validPw(pw)){flash("Password must be 8+ characters with uppercase, lowercase and a digit.");return;}if(userByEmail(em)){flash("That email is already registered.");return;}DB.users.push({id:DB.nextId++,name:n,email:em,pw:hashPw(pw),role:"user",city:"",country:"",state:"",industry:"",occupation:"",interest:"",income:""});save();flash("Account created. Please log in.");showView("auth");}
+function saveProfile(e){e.preventDefault();var u=me();u.name=document.getElementById("pf_name").value.trim();u.country=document.getElementById("pf_country").value;u.state=document.getElementById("pf_state").value;u.city=document.getElementById("pf_city").value;u.industry=document.getElementById("pf_industry").value;u.occupation=document.getElementById("pf_occ").value;u.interest=document.getElementById("pf_int").value;u.income=document.getElementById("pf_inc").value;save();flash("Profile updated.");showView("profile");}
+function changePw(e){e.preventDefault();var u=me();if(u.pw!==hashPw(document.getElementById("cp_cur").value)){flash("Current password is incorrect.");return;}if(!validPw(document.getElementById("cp_new").value)){flash("New password must be 8+ characters with uppercase, lowercase and a digit.");return;}u.pw=hashPw(document.getElementById("cp_new").value);save();flash("Password changed.");showView("profile");}
+function sendMail(e,draft){if(e){e.preventDefault();}var u=me();var to=document.getElementById("cm_to").value.trim().toLowerCase(),sub=document.getElementById("cm_sub").value.trim()||"(No subject)",body=document.getElementById("cm_body").value.trim();if(draft){DB.mails.push({id:DB.nextId++,from:u.id,to:null,subject:sub,body:body,sf:"draft",rf:"draft",at:new Date().toISOString().slice(0,16).replace("T"," ")});save();flash("Draft saved.");showView("mail","draft");return;}var r=userByEmail(to);if(!r){flash("No user with that email. Mail was not sent.");return;}DB.mails.push({id:DB.nextId++,from:u.id,to:r.id,subject:sub,body:body,sf:"sent",rf:"inbox",at:new Date().toISOString().slice(0,16).replace("T"," ")});save();flash("Mail sent.");showView("mail","sent");}
+function saveMail(id){var u=me();var m=DB.mails.filter(function(x){return x.id===id;})[0];if(m.to===u.id){m.rf="saved";}if(m.from===u.id){m.sf="saved";}save();flash("Mail saved.");showView("mail","saved");}
+function deleteMail(id){var u=me();var m=DB.mails.filter(function(x){return x.id===id;})[0];if(m.to===u.id){m.rf="deleted";}if(m.from===u.id){m.sf="deleted";}if(m.rf==="deleted"&&m.sf==="deleted"){DB.mails=DB.mails.filter(function(x){return x.id!==id;});}save();flash("Mail deleted.");showView("mail");}
+function createAppt(e){e.preventDefault();var u=me();DB.appts.push({id:DB.nextId++,user:u.id,title:document.getElementById("ap_title").value.trim(),with:document.getElementById("ap_with").value.trim(),date:document.getElementById("ap_date").value,time:document.getElementById("ap_time").value,notes:document.getElementById("ap_notes").value,status:"Scheduled"});save();flash("Appointment created.");showView("appts");}
+function cancelAppt(id){var a=DB.appts.filter(function(x){return x.id===id;})[0];if(a){a.status="Cancelled";save();}flash("Appointment cancelled.");showView("appts");}
+function createRoom(e){e.preventDefault();var n=document.getElementById("room_name").value.trim();if(DB.rooms.filter(function(r){return r.name===n;}).length){flash("A room with that name already exists.");return;}DB.rooms.push({id:DB.nextId++,name:n});save();flash("Chat room created.");showView("chat");}
+function postChat(e,rid){e.preventDefault();var u=me();DB.messages.push({room:rid,user:u.id,body:document.getElementById("chat_body").value.trim(),at:new Date().toISOString().slice(0,16).replace("T"," ")});save();showView("room",rid);}
+function addMaster(e){e.preventDefault();var k=document.getElementById("m_kind").value,n=document.getElementById("m_name").value.trim();if(DB.masters.filter(function(m){return m.kind===k&&m.name===n;}).length){flash("That master already exists.");return;}DB.masters.push({kind:k,name:n});save();flash("Master added.");showView("masters");}
+function deleteMaster(i){DB.masters.splice(i,1);save();flash("Master deleted.");showView("masters");}
+function sendFeedback(e){e.preventDefault();var u=me();DB.feedback.push({name:document.getElementById("fb_name").value.trim()||(u?u.name:"Guest"),message:document.getElementById("fb_msg").value.trim(),at:new Date().toISOString().slice(0,16).replace("T"," ")});save();flash("Thanks! Your feedback was saved.");showView("feedback");}
+showView("home");
+</script></body></html>
