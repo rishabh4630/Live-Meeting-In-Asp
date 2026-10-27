@@ -71,6 +71,14 @@ function userById(id){return DB.users.filter(function(u){return u.id===id;})[0]|
 function userByEmail(e){return DB.users.filter(function(u){return u.email===e;})[0]||null;}
 function flash(m){document.getElementById("flash").innerHTML='<p class="flash">'+esc(m)+'</p>';}
 function wmoLabel(c){if(c===0)return "Clear sky";if(c===1)return "Mainly clear";if(c===2)return "Partly cloudy";if(c===3)return "Overcast";if(c===45||c===48)return "Foggy";if(c===51||c===53||c===55)return "Drizzle";if(c===61||c===63||c===65)return "Rain";if(c===71||c===73||c===75)return "Snow";if(c===80||c===81||c===82)return "Rain showers";if(c===95)return "Thunderstorm";return "Weather update";}
+function loadQuote(){
+  var q=document.getElementById("about-quote");
+  if(!q)return;
+  fetch("https://zenquotes.io/api/random").then(function(r){return r.json();}).then(function(d){
+    if(!d||!d.length)throw new Error("no quote");
+    q.innerHTML="\u201C"+esc(d[0].q)+"\u201D — "+esc(d[0].a);
+  }).catch(function(){q.innerHTML="Quote unavailable right now.";});
+}
 function loadDaily(city,country){
   var w=document.getElementById("daily-weather"),t=document.getElementById("daily-tip");
   if(!w||!t)return;
@@ -79,6 +87,17 @@ function loadDaily(city,country){
     var lat=g.results[0].latitude,lon=g.results[0].longitude,name=g.results[0].name;
     return fetch("https://api.open-meteo.com/v1/forecast?latitude="+lat+"&longitude="+lon+"&current=temperature_2m,weather_code&timezone=auto").then(function(r){return r.json();}).then(function(f){
       w.innerHTML="<b>"+esc(name)+"</b><br>"+Math.round(f.current.temperature_2m)+"\u00B0C, "+wmoLabel(f.current.weather_code)+" \u2014 good to know before you step out for a meeting.";
+      fetch("https://air-quality-api.open-meteo.com/v1/air-quality?latitude="+lat+"&longitude="+lon+"&current=pm2_5,us_aqi").then(function(r){return r.json();}).then(function(a){
+        if(a.current&&a.current.us_aqi!=null){
+          var q=a.current.us_aqi, label=q<=50?"Good":q<=100?"Moderate":q<=150?"Unhealthy for sensitive groups":q<=200?"Unhealthy":q<=300?"Very unhealthy":"Hazardous";
+          w.innerHTML+="<br>Air quality: AQI "+Math.round(q)+" ("+label+"), PM2.5 "+Math.round(a.current.pm2_5)+" \u00B5g/m\u00B3.";
+        }
+      }).catch(function(){});
+      fetch("https://api.open-meteo.com/v1/forecast?latitude="+lat+"&longitude="+lon+"&daily=sunrise,sunset&timezone=auto&forecast_days=1").then(function(r){return r.json();}).then(function(s){
+        if(s.daily&&s.daily.sunrise&&s.daily.sunrise.length){
+          w.innerHTML+="<br>Sunrise "+esc(s.daily.sunrise[0].slice(11,16))+", sunset "+esc(s.daily.sunset[0].slice(11,16))+".";
+        }
+      }).catch(function(){});
     });
   }).catch(function(){w.innerHTML="Weather unavailable right now.";});
   fetch("https://api.adviceslip.com/advice").then(function(r){return r.json();}).then(function(d){
@@ -87,9 +106,18 @@ function loadDaily(city,country){
   var ck=document.getElementById("daily-clock");
   if(ck){
     var tz = (country==="USA") ? "America/New_York" : (country==="UK") ? "Europe/London" : "Asia/Kolkata";
-    fetch("https://timeapi.io/api/time/current/zone?timeZone="+encodeURIComponent(tz)).then(function(r){return r.json();}).then(function(d){
-      ck.innerHTML="<b>"+esc(d.time)+"</b> · "+esc(d.dayOfWeek)+" · "+esc(tz);
-    }).catch(function(){ck.innerHTML="Time unavailable right now.";});
+    var zones=["Asia/Kolkata","America/New_York","Europe/London"];
+    zones.sort(function(a,b){return (a===tz?-1:0)-(b===tz?-1:0);});
+    var done=0;
+    zones.forEach(function(z){
+      fetch("https://timeapi.io/api/time/current/zone?timeZone="+encodeURIComponent(z)).then(function(r){return r.json();}).then(function(d){
+        var short=z.split("/")[1].replace("_"," ");
+        var line="<b>"+esc(d.time)+"</b> · "+esc(short);
+        if(z===tz){line="<b>"+esc(d.time)+"</b> · "+esc(d.dayOfWeek)+" · "+esc(short)+" (yours)";}
+        ck.innerHTML=(done===0?"":ck.innerHTML+"<br>")+line;
+        done++;
+      }).catch(function(){done++;if(done===zones.length&&!ck.innerHTML)ck.innerHTML="Time unavailable right now.";});
+    });
   }
 }
 function loadApptForecast(city){
@@ -141,7 +169,8 @@ function showView(v,arg){
     +'<h2>Chat rooms</h2><div class="grid">'+(rooms||"<p>No rooms yet.</p>")+'</div>'
     +'<div class="card"><h2>What this is</h2><p class="muted">A browser demo of the Live Meeting web remake. The original used ASP.NET and SQL Server; this demo keeps the same features in your browser only. Chat here is live text chat in a room — it does not start a video call.</p></div>');
   loadDaily(u&&u.city?u.city:"Lucknow",u&&u.country?u.country:"India");}else if(v==="about"){
-    setView('<div class="card"><h2>About Live Meeting</h2><p>Live Meeting is a small collaboration app: user accounts, internal mail, appointments with a calendar view, admin masters, feedback, and live text chat rooms. It is a student/demo remake of an ASP.NET Web Forms project.</p><p class="muted">No real contact details are published here. This is demo data only.</p></div>');
+    setView('<div class="card"><h2>About Live Meeting</h2><p>Live Meeting is a small collaboration app: user accounts, internal mail, appointments with a calendar view, admin masters, feedback, and live text chat rooms. It is a student/demo remake of an ASP.NET Web Forms project.</p><p class="muted">No real contact details are published here. This is demo data only.</p><h3>Thought of the day</h3><p id="about-quote" class="muted">Loading...</p></div>');
+    loadQuote();
   }else if(v==="auth"){
     setView('<div class="card"><h2>Login</h2><form onsubmit="doLogin(event)"><label>Email</label><input id="li_email" type="email" required><label>Password</label><input id="li_pw" type="password" required><p><button>Log in</button></p></form><p class="muted">Demo admin: admin@livemeeting.demo / Admin123 (demo only).</p></div>'
     +'<div class="card"><h2>Sign Up</h2><form onsubmit="doSignup(event)"><label>Full name</label><input id="su_name" required><label>Email</label><input id="su_email" type="email" required><label>Password</label><input id="su_pw" type="password" required><p class="muted">Password: 8+ characters with uppercase, lowercase and a digit.</p><p><button>Create account</button></p></form><p class="muted">Demo only: passwords are stored as a simple demo hash in this browser, never in plain text — this is not production-grade security.</p></div>');
