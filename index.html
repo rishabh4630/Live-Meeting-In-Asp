@@ -55,7 +55,7 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 4px rgba(139,92,246,.25
 ::-webkit-scrollbar{width:10px;height:10px}
 ::-webkit-scrollbar-thumb{background:#2E3247;border-radius:999px}
 ::-webkit-scrollbar-track{background:transparent}
-@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}</style></head><body>
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}.card button,.card .btn{margin:2px 6px 2px 0}</style></head><body>
 <header><a href="#" onclick="showView('home');return false;"><strong>Live Meeting</strong></a>
 <div>Text chat, mail and appointments — in one place.</div>
 <nav id="topnav"></nav></header>
@@ -209,7 +209,7 @@ function logout(){DB.current=null;save();flash("Logged out.");showView("home");}
 function showView(v,arg){
   var u=me();
   if(v==="home"){
-    var rooms=DB.rooms.map(function(r){return '<div class="card"><h3>'+esc(r.name)+'</h3><p><button onclick="showView(\'room\','+r.id+')">Join chat</button> <button class="secondary" onclick="showView(\'video\','+r.id+')">Video meeting</button></p></div>';}).join("");
+    var rooms=DB.rooms.map(function(r){return '<div class="card"><h3>'+esc(r.name)+'</h3><p><button onclick="showView(\'room\','+r.id+')">Join chat</button> <button onclick="showView(\'video\','+r.id+')">Video meeting</button></p></div>';}).join("");
     setView('<div class="hero"><p>TEXT CHAT, MAIL &amp; APPOINTMENTS</p><h1>Meet, message and plan — in one place.</h1><p>Register, send internal mail, book appointments and join a live text chat room. This is text chat only, not video calling.</p><p><button onclick="showView(\'chat\')">Open Chat</button> <button class="secondary" onclick="showView(\'appts\')">Appointments</button></p></div>'
     +'<div class="daily"><div class="card"><h3>Today in your city</h3><p id="daily-weather" class="muted">Loading weather...</p></div><div class="card"><h3>Meeting icebreaker</h3><p id="daily-tip" class="muted">Loading...</p></div><div class="card"><h3>Meeting time now</h3><p id="daily-clock" class="muted">Loading time...</p></div></div>'
     +'<div class="grid"><div class="card"><h3>Users</h3><p><b>'+DB.users.length+'</b></p></div><div class="card"><h3>Chat rooms</h3><p><b>'+DB.rooms.length+'</b></p></div><div class="card"><h3>Mail</h3><p><b>'+DB.mails.length+'</b></p></div><div class="card"><h3>Scheduled appointments</h3><p><b>'+DB.appts.filter(function(a){return a.status==="Scheduled";}).length+'</b></p></div></div>'
@@ -258,14 +258,14 @@ function showView(v,arg){
     setView('<div class="card"><h2>New appointment</h2><form onsubmit="createAppt(event)"><label>Title</label><input id="ap_title" required><label>With (person)</label><input id="ap_with" required><label>Date</label><input id="ap_date" type="date" value="2026-11-05" required><label>Time</label><input id="ap_time" type="time" value="11:00" required><label>Notes</label><textarea id="ap_notes" rows="4"></textarea><p><button>Create appointment</button></p></form></div>');
   }else if(v==="chat"){
     if(!u){flash("Please log in first.");return showView("auth");}
-    var cards=DB.rooms.map(function(r){return '<div class="card"><h3>'+esc(r.name)+'</h3><p><button onclick="showView(\'room\','+r.id+')">Join chat</button> <button class="secondary" onclick="showView(\'video\','+r.id+')">Video meeting</button></p></div>';}).join("");
+    var cards=DB.rooms.map(function(r){return '<div class="card"><h3>'+esc(r.name)+'</h3><p><button onclick="showView(\'room\','+r.id+')">Join chat</button> <button onclick="showView(\'video\','+r.id+')">Video meeting</button></p></div>';}).join("");
     setView('<div class="card"><h2>Chat rooms</h2><p class="muted">Text chat only — these rooms do not start a video call.</p><form onsubmit="createRoom(event)"><label>New room name</label><input id="room_name" required><p><button>Create room</button></p></form></div><div class="grid">'+(cards||"<p>No rooms yet.</p>")+'</div>');
   }else if(v==="room"){
     if(!u){flash("Please log in first.");return showView("auth");}
     var room=DB.rooms.filter(function(r){return r.id===arg;})[0];
     if(!room){flash("Room not found.");return showView("chat");}
     var msgs=DB.messages.filter(function(m){return m.room===room.id;}).map(function(m){var s=userById(m.user);var mine=u&&m.user===u.id;return '<div class="msg'+(mine?' mine':'')+'"><b>'+esc(s?s.name:"?")+'</b> <span class="muted">'+esc(m.at)+'</span><br>'+esc(m.body)+'</div>';}).join("");
-    setView('<div class="card"><h2>'+esc(room.name)+'</h2><p class="muted">Text chat only — not a video meeting.</p><div class="chatlog">'+(msgs||"<p>No messages yet. Say hello!</p>")+'</div><form onsubmit="postChat(event,'+room.id+')"><label>Message</label><input id="chat_body" required><p><button>Send message</button> <button class="secondary" type="button" onclick="showView(\'chat\')">All rooms</button> <button class="secondary" type="button" onclick="showView(\'video\',room.id)">Video meeting</button></p></form></div>');
+    setView('<div class="card"><h2>'+esc(room.name)+'</h2><p class="muted">Text chat only — not a video meeting.</p><div class="chatlog">'+(msgs||"<p>No messages yet. Say hello!</p>")+'</div><form onsubmit="postChat(event,'+room.id+')"><label>Message</label><input id="chat_body" required><p><button>Send message</button> <button class="secondary" type="button" onclick="showView(\'chat\')">All rooms</button> <button type="button" onclick="showView(\'video\',room.id)">Video meeting</button></p></form></div>');
   }else if(v==="video"){
     if(!u){flash("Please log in first.");return showView("auth");}
     var room=DB.rooms.filter(function(r){return r.id===arg;})[0];

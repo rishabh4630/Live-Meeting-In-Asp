@@ -314,7 +314,7 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 4px rgba(139,92,246,.25
 ::-webkit-scrollbar{width:10px;height:10px}
 ::-webkit-scrollbar-thumb{background:#2E3247;border-radius:999px}
 ::-webkit-scrollbar-track{background:transparent}
-@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}</style></head><body>
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}.card button,.card .btn{margin:2px 6px 2px 0}</style></head><body>
 <header><a href="/"><strong>Live Meeting</strong></a><div>Text chat, mail and appointments — in one place.</div>{{ nav|safe }}</header>
 <main>{{ body|safe }}</main>
 <footer>Live Meeting web version &middot; Text chat only — this is not video calling &middot; Demo data only</footer>
@@ -344,7 +344,7 @@ def home():
     rooms = db.execute("SELECT * FROM chat_rooms ORDER BY name").fetchall()
     room_cards = "".join(
         f'<div class="card"><h3>{esc(r["name"])}</h3>'
-        f'<p><a class="btn" href="/chat/{r["id"]}">Join chat</a> <a class="btn secondary" href="/chat/{r["id"]}/video">Video meeting</a></p></div>' for r in rooms)
+        f'<p><a class="btn" href="/chat/{r["id"]}">Join chat</a> <a class="btn" href="/chat/{r["id"]}/video">Video meeting</a></p></div>' for r in rooms)
     daily_city = (u["city"] if u and u["city"] else "Lucknow").replace('"', "").replace("'", "")
     daily_tz = {"USA": "America/New_York", "UK": "Europe/London"}.get(u["country"] if u else "", "Asia/Kolkata")
     body = f"""<div class="hero"><p>BUS &amp; MEETING — TEXT CHAT, MAIL &amp; APPOINTMENTS</p>
@@ -815,7 +815,7 @@ def chat_list():
     rooms = db.execute("SELECT * FROM chat_rooms ORDER BY name").fetchall()
     cards = "".join(
         f'<div class="card"><h3>{esc(r["name"])}</h3>'
-        f'<p><a class="btn" href="/chat/{r["id"]}">Join chat</a> <a class="btn secondary" href="/chat/{r["id"]}/video">Video meeting</a></p></div>' for r in rooms)
+        f'<p><a class="btn" href="/chat/{r["id"]}">Join chat</a> <a class="btn" href="/chat/{r["id"]}/video">Video meeting</a></p></div>' for r in rooms)
     return page("Chat rooms", f"""<div class="card"><h2>Chat rooms</h2>
     <p class="muted">Text chat only — these rooms do not start a video call.</p>
     <form method="post">{field("New room name", "name", required=True)}
@@ -851,7 +851,7 @@ def chat_room(rid):
     <div class="chatlog">{msgs_html or "<p>No messages yet. Say hello!</p>"}</div>
     <form method="post"><label>Message</label>
     <input type="text" name="body" required>
-    <p><button>Send message</button> <a class="btn secondary" href="/chat">All rooms</a> <a class="btn secondary" href="/chat/{rid}/video">Video meeting</a></p></form></div>""")
+    <p><button>Send message</button> <a class="btn secondary" href="/chat">All rooms</a> <a class="btn" href="/chat/{rid}/video">Video meeting</a></p></form></div>""")
 
 
 @app.route("/chat/<int:rid>/video")
