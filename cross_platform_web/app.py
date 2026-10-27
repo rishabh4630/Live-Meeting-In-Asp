@@ -854,7 +854,7 @@ def chat_room(rid):
     <div class="chatlog">{msgs_html or "<p>No messages yet. Say hello!</p>"}</div>
     <form method="post"><label>Message</label>
     <input type="text" name="body" required>
-    <p><button>Send message</button> <a class="btn secondary" href="/chat">All rooms</a> <a class="btn" href="/chat/{rid}/video">Video meeting</a></p></form></div>""")
+    <p><button>Send message</button> <a class="btn secondary" href="/chat">All rooms</a></p></form></div>""")
 
 
 @app.route("/chat/<int:rid>/video")
