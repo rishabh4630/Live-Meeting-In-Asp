@@ -344,7 +344,7 @@ def home():
     rooms = db.execute("SELECT * FROM chat_rooms ORDER BY name").fetchall()
     room_cards = "".join(
         f'<div class="card"><h3>{esc(r["name"])}</h3>'
-        f'<p><a class="btn" href="/chat/{r["id"]}">Join chat</a></p></div>' for r in rooms)
+        f'<p><a class="btn" href="/chat/{r["id"]}">Join chat</a> <a class="btn secondary" href="/chat/{r["id"]}/video">Video meeting</a></p></div>' for r in rooms)
     daily_city = (u["city"] if u and u["city"] else "Lucknow").replace('"', "").replace("'", "")
     daily_tz = {"USA": "America/New_York", "UK": "Europe/London"}.get(u["country"] if u else "", "Asia/Kolkata")
     body = f"""<div class="hero"><p>BUS &amp; MEETING — TEXT CHAT, MAIL &amp; APPOINTMENTS</p>
@@ -815,7 +815,7 @@ def chat_list():
     rooms = db.execute("SELECT * FROM chat_rooms ORDER BY name").fetchall()
     cards = "".join(
         f'<div class="card"><h3>{esc(r["name"])}</h3>'
-        f'<p><a class="btn" href="/chat/{r["id"]}">Join chat</a></p></div>' for r in rooms)
+        f'<p><a class="btn" href="/chat/{r["id"]}">Join chat</a> <a class="btn secondary" href="/chat/{r["id"]}/video">Video meeting</a></p></div>' for r in rooms)
     return page("Chat rooms", f"""<div class="card"><h2>Chat rooms</h2>
     <p class="muted">Text chat only — these rooms do not start a video call.</p>
     <form method="post">{field("New room name", "name", required=True)}
@@ -851,7 +851,46 @@ def chat_room(rid):
     <div class="chatlog">{msgs_html or "<p>No messages yet. Say hello!</p>"}</div>
     <form method="post"><label>Message</label>
     <input type="text" name="body" required>
-    <p><button>Send message</button> <a class="btn secondary" href="/chat">All rooms</a></p></form></div>""")
+    <p><button>Send message</button> <a class="btn secondary" href="/chat">All rooms</a> <a class="btn secondary" href="/chat/{rid}/video">Video meeting</a></p></form></div>""")
+
+
+@app.route("/chat/<int:rid>/video")
+def chat_video(rid):
+    u = current_user()
+    if not u:
+        return require_login()
+    db = get_db()
+    room = db.execute("SELECT * FROM chat_rooms WHERE id=?", (rid,)).fetchone()
+    if not room:
+        flash("Room not found.")
+        return redirect(url_for("chat_list"))
+    jitsi_room = f"LM-Rishabh4630-Room{rid}"
+    _body = f"""<div class="card"><h2>{esc(room["name"])} — Video meeting</h2>
+    <p class="muted">Real video meeting, powered by Jitsi Meet (free public service). Your camera and microphone stay in your browser and with Jitsi — this app does not record the call. Anyone who knows this room name can join, so share the link only with people you want in the meeting.</p>
+    <p><button id="join-video-btn">Join video meeting</button> <a class="btn secondary" target="_blank" href="https://meet.jit.si/{jitsi_room}">Open in new tab</a> <a class="btn secondary" href="/chat/{rid}">Back to text chat</a></p>
+    <div id="jitsi-container" data-room="{jitsi_room}" data-name="{esc(u['name'])}"></div>
+    <p class="muted">Room: {jitsi_room} · If video does not start here, use "Open in new tab" and allow camera/microphone there.</p></div>"""
+    _body += """<script>
+    (function(){
+      var box=document.getElementById("jitsi-container");
+      var btn=document.getElementById("join-video-btn");
+      if(!box||!btn)return;
+      btn.addEventListener("click", function(){
+        box.innerHTML='<p class="muted">Loading video... allow camera and microphone when asked.</p>';
+        btn.disabled=true;
+        function start(){
+          try{
+            box.innerHTML="";
+            new JitsiMeetExternalAPI("meet.jit.si",{roomName:box.getAttribute("data-room"),width:"100%",height:600,parentNode:box,userInfo:{displayName:box.getAttribute("data-name")||"Guest"}});
+          }catch(e){box.innerHTML='<p class="muted">Video could not start here. Use the "Open in new tab" link instead.</p>';}
+        }
+        if(window.JitsiMeetExternalAPI){start();}else{
+          var s=document.createElement("script");s.src="https://meet.jit.si/external_api.js";s.onload=start;s.onerror=function(){box.innerHTML='<p class="muted">Video script could not load. Use the "Open in new tab" link instead.</p>';};document.head.appendChild(s);
+        }
+      });
+    })();
+    </script>"""
+    return page(f"Video — {room['name']}", _body)
 
 
 # ---------------------------------------------------------------------------
