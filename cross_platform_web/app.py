@@ -255,31 +255,31 @@ def page(title, body, u=None):
 LAYOUT = """<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{ title }} - Live Meeting</title>
-<style>:root{--ink:#16130E;--paper:#F4F1EA;--lime:#D7FF3E;--orange:#FF7A00;--surface:#fff;--muted:#6B6455;--line:#16130E}
-*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--paper);color:var(--ink)}
-h1,h2,h3{font-weight:800;letter-spacing:-.02em}
-header{position:fixed;left:0;top:0;bottom:0;width:240px;background:var(--ink);color:#fff;padding:26px 20px;overflow-y:auto}
-header a{color:#fff;text-decoration:none}header>a:first-child strong{font-size:1.35rem}header>a:first-child strong::before{content:"● ";color:var(--lime)}
-header>div{color:#B9B2A4;margin-top:6px;font-size:.9rem}
-nav{display:flex;flex-direction:column;gap:6px;margin-top:26px}
-nav a{color:#EDEAE2;cursor:pointer;padding:10px 14px;border-radius:10px;border:2px solid transparent;font-weight:600}nav a:hover{background:#2A261F;border-color:var(--lime);color:#fff}
-main{margin-left:240px;max-width:900px;padding:28px 26px}
-.hero{background:var(--ink);color:#fff;border:3px solid var(--ink);border-radius:20px;padding:34px;margin-bottom:22px;box-shadow:8px 8px 0 var(--lime)}
-.hero h1{margin:0 0 8px;font-size:2rem;text-transform:uppercase}.hero p{color:#D8D2C4}
-.card{background:var(--surface);border:2px solid var(--ink);border-radius:16px;padding:20px;margin-bottom:18px;box-shadow:5px 5px 0 var(--ink)}
+<style>:root{--bg:#0F1117;--surface:#1B1E2A;--surface2:#232636;--line:#2E3247;--ink:#ECEEF4;--muted:#9AA0B5;--violet:#8B5CF6;--violet2:#A78BFA;--pink:#EC4899;--amber:#F59E0B}
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+h1,h2,h3{font-weight:750;letter-spacing:-.02em}
+header{position:sticky;top:0;z-index:10;background:rgba(15,17,23,.92);backdrop-filter:blur(10px);color:#fff;padding:16px 20px;border-bottom:1px solid var(--line)}
+header a{color:#fff;text-decoration:none}header>a:first-child strong{font-size:1.3rem}header>a:first-child strong::before{content:"● ";color:var(--violet2)}
+header>div{color:var(--muted);margin-top:4px;font-size:.9rem}
+nav{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+nav a{color:#C6CADD;cursor:pointer;padding:8px 14px;border-radius:999px;border:1px solid transparent;font-weight:600}nav a:hover{background:var(--surface2);border-color:var(--line);color:#fff}
+main{max-width:980px;margin:0 auto;padding:28px 20px}
+.hero{background:linear-gradient(135deg,#1E1B4B,#4C1D95 55%,#831843);color:#fff;border:1px solid #3B3560;border-radius:24px;padding:36px;margin-bottom:22px;box-shadow:0 20px 50px rgba(139,92,246,.25)}
+.hero h1{margin:0 0 8px;font-size:2rem}.hero p{color:#DDD6FE}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:20px;margin-bottom:18px;box-shadow:0 12px 30px rgba(0,0,0,.35)}
 .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
-label{display:block;margin:10px 0 4px;font-weight:700}
-input,select,textarea{width:100%;padding:10px;border:2px solid var(--ink);border-radius:12px;font:inherit;background:#fff}input:focus,select:focus,textarea:focus{outline:3px solid var(--lime);outline-offset:1px}
-button,.btn{display:inline-block;background:var(--lime);color:var(--ink);border:2px solid var(--ink);border-radius:999px;padding:11px 22px;font:inherit;font-weight:800;cursor:pointer;text-decoration:none;box-shadow:3px 3px 0 var(--ink)}
-button.secondary,.btn.secondary{background:#fff;color:var(--ink)}
-table{width:100%;border-collapse:collapse}th,td{padding:9px 10px;border-bottom:2px solid #E7E1D3;text-align:left}
-.table-wrap{overflow-x:auto}.flash{background:#FFF3C4;border:2px solid var(--ink);padding:10px 14px;border-radius:12px}
-.pill{background:var(--lime);color:var(--ink);border:2px solid var(--lime);border-radius:999px;padding:3px 10px;font-size:.85rem;font-weight:700}
-.muted{color:var(--muted)}footer{margin-left:240px;padding:20px;text-align:center;color:var(--muted)}
+label{display:block;margin:10px 0 4px;font-weight:650;color:#DDD6FE}
+input,select,textarea{width:100%;padding:11px;border:1px solid var(--line);border-radius:12px;font:inherit;background:var(--surface2);color:var(--ink)}input:focus,select:focus,textarea:focus{outline:2px solid var(--violet);border-color:var(--violet)}
+button,.btn{display:inline-block;background:linear-gradient(100deg,var(--violet),var(--pink));color:#fff;border:0;border-radius:999px;padding:11px 22px;font:inherit;font-weight:700;cursor:pointer;text-decoration:none;box-shadow:0 8px 22px rgba(139,92,246,.35)}
+button.secondary,.btn.secondary{background:var(--surface2);color:var(--ink);border:1px solid var(--line);box-shadow:none}
+table{width:100%;border-collapse:collapse}th,td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:left}
+.table-wrap{overflow-x:auto}.flash{background:#2A2410;border:1px solid var(--amber);color:#FDE68A;padding:10px 14px;border-radius:12px}
+.pill{background:rgba(139,92,246,.22);border:1px solid var(--violet);color:#DDD6FE;border-radius:999px;padding:3px 10px;font-size:.85rem}
+.muted{color:var(--muted)}footer{padding:20px;text-align:center;color:var(--muted)}
 .chatlog{display:flex;flex-direction:column;gap:10px;margin:14px 0}
-.msg{border:2px solid var(--ink);border-radius:16px;padding:10px 14px;background:var(--paper);max-width:85%}
-.msg.mine{background:var(--lime);margin-left:auto}
-@media(max-width:760px){header{position:static;width:auto}nav{flex-direction:row;flex-wrap:wrap}main,footer{margin-left:0}.grid{grid-template-columns:1fr}main{padding:16px 12px}.hero{padding:22px 18px}}</style></head><body>
+.msg{border:1px solid var(--line);border-radius:16px;padding:10px 14px;background:var(--surface2);max-width:85%}
+.msg.mine{background:linear-gradient(100deg,var(--violet),#7C3AED);border-color:transparent;margin-left:auto}
+@media(max-width:520px){.grid{grid-template-columns:1fr}main{padding:16px 12px}.hero{padding:22px 18px}}</style></head><body>
 <header><a href="/"><strong>Live Meeting</strong></a><div>Text chat, mail and appointments — in one place.</div>{{ nav|safe }}</header>
 <main>{{ body|safe }}</main>
 <footer>Live Meeting web version &middot; Text chat only — this is not video calling &middot; Demo data only</footer>
