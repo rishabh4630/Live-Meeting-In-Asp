@@ -74,3 +74,11 @@ Free-tier note: Render's free service sleeps after inactivity (first visit
 after a pause takes ~a minute to wake up), and its disk is not persistent —
 accounts and messages can reset when the service restarts or redeploys.
 For permanent data, add a hosted database later.
+
+## Permanent database (PostgreSQL)
+
+By default the app uses local SQLite. For a hosted site whose data survives
+restarts and redeploys, set the `DATABASE_URL` env var to a hosted Postgres
+connection string (for example a free Neon project). With `DATABASE_URL` set,
+the app uses PostgreSQL (psycopg) with the same tables and features; without
+it, it falls back to SQLite. The same code runs both ways.
