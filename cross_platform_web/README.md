@@ -31,8 +31,8 @@ Then open http://127.0.0.1:5000 in a browser.
   This is mail inside the app only — it does not send real email.
 - Appointments: create / list / cancel, plus a calendar view by date
 - Text chat rooms: create / join a room, post messages.
-  **Text chat only — this is not video calling, and the site never claims
-  otherwise.**
+- Video meetings: per-room Jitsi Meet video (free public service),
+  from the home Video meetings section.
 - Feedback form (admin sees all feedback on the Admin page)
 
 ## Demo accounts (demo only)
@@ -55,3 +55,22 @@ placeholder `YOUR_SQLSERVER_PASSWORD` before any public copy — never put
 a real database password in code. Binary originals (.mdf, .ldf, .bak,
 .msi, .dll, .doc, .ppt, images) are not in this folder; they need the
 GitHub web UI if they are to be uploaded at all.
+
+## Deploy (hosted, so friends can join)
+
+The app is ready for Render's free tier (`render.yaml` at the repo root,
+`Procfile` + `requirements.txt` in this folder):
+
+1. On Render, create a **Web Service** from this repo (or use the Blueprint
+   in `render.yaml`), with root directory `cross_platform_web`.
+2. Build: `pip install -r requirements.txt` — Start:
+   `gunicorn app:app --bind 0.0.0.0:$PORT`.
+3. Set env vars: `SECRET_KEY` (any long random value) and, to make your own
+   account admin on the hosted site, `ADMIN_EMAIL` (your email).
+4. Share the Render URL with friends — everyone signs up on the same hosted
+   site, so accounts, mail, appointments and chat are shared.
+
+Free-tier note: Render's free service sleeps after inactivity (first visit
+after a pause takes ~a minute to wake up), and its disk is not persistent —
+accounts and messages can reset when the service restarts or redeploys.
+For permanent data, add a hosted database later.

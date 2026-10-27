@@ -41,10 +41,10 @@ from flask import Flask, flash, g, redirect, render_template_string, request, se
 from werkzeug.security import check_password_hash, generate_password_hash
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATABASE = os.path.join(BASE_DIR, "live_meeting.db")
+DATABASE = os.environ.get("LM_DATABASE", os.path.join(BASE_DIR, "live_meeting.db"))
 
 app = Flask(__name__)
-app.secret_key = "live-meeting-dev-key-change-me"
+app.secret_key = os.environ.get("SECRET_KEY", "live-meeting-dev-key-change-me")
 
 MASTER_KINDS = ["country", "state", "city", "industry", "income", "interest", "occupation"]
 MAIL_FOLDERS = ["inbox", "sent", "draft", "saved"]
@@ -1001,4 +1001,5 @@ def feedback():
 
 
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=5000, debug=False)
+    app.run(host=os.environ.get("HOST", "127.0.0.1"),
+            port=int(os.environ.get("PORT", "5000")), debug=False)
