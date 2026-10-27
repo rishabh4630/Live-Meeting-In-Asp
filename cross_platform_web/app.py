@@ -353,7 +353,7 @@ def home():
     body = f"""<div class="hero"><p>BUS &amp; MEETING — TEXT CHAT, MAIL &amp; APPOINTMENTS</p>
     <h1>Meet, message and plan — in one place.</h1>
     <p>Register, send internal mail, book appointments, join a live text chat room, or start a real video meeting.</p>
-    <p><a class="btn" href="/chat">Open Chat</a> <a class="btn secondary" href="/appointments">Appointments</a></p></div>
+    <p><a class="btn" href="#video-meetings">Join video meeting</a> <a class="btn" href="/chat">Open Chat</a> <a class="btn secondary" href="/appointments">Appointments</a></p></div>
     <div class="daily"><div class="card"><h3>Today in your city</h3><p id="daily-weather" class="muted">Loading weather...</p></div><div class="card"><h3>Meeting icebreaker</h3><p id="daily-tip" class="muted">Loading...</p></div><div class="card"><h3>Meeting time now</h3><p id="daily-clock" class="muted">Loading time...</p></div></div>
     <div class="grid">
       <div class="card"><h3>Users</h3><p><b>{stats["users"]}</b></p></div>
@@ -361,7 +361,7 @@ def home():
       <div class="card"><h3>Messages &amp; mail</h3><p><b>{stats["mails"]}</b></p></div>
       <div class="card"><h3>Scheduled appointments</h3><p><b>{stats["appts"]}</b></p></div>
     </div>
-    <h2>Video meetings</h2><p class="muted">Real video meeting, powered by Jitsi Meet (free). Pick a room and join on video — camera and microphone permission needed.</p><div class="grid">{video_cards or "<p>No rooms yet.</p>"}</div>
+    <h2 id="video-meetings">Video meetings</h2><p class="muted">Real video meeting, powered by Jitsi Meet (free). Pick a room and join on video — camera and microphone permission needed.</p><div class="grid">{video_cards or "<p>No rooms yet.</p>"}</div>
     <h2>Chat rooms</h2><div class="grid">{room_cards or "<p>No rooms yet.</p>"}</div>
     <div class="card"><h2>What this is</h2><p class="muted">A web remake of the original
     ASP.NET Live Meeting project. The original used SQL Server and Web Forms;
