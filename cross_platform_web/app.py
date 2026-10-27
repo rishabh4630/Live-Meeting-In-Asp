@@ -344,7 +344,7 @@ def home():
     rooms = db.execute("SELECT * FROM chat_rooms ORDER BY name").fetchall()
     room_cards = "".join(
         f'<div class="card"><h3>{esc(r["name"])}</h3>'
-        f'<p><a class="btn" href="/chat/{r["id"]}">Join chat</a> <a class="btn" href="/chat/{r["id"]}/video">Video meeting</a></p></div>' for r in rooms)
+        f'<p><a class="btn" href="/chat/{r["id"]}">Join chat</a></p></div>' for r in rooms)
     video_cards = "".join(
         f'<div class="card"><h3>{esc(r["name"])}</h3>'
         f'<p><a class="btn" href="/chat/{r["id"]}/video">Start video meeting</a></p></div>' for r in rooms)
@@ -818,7 +818,7 @@ def chat_list():
     rooms = db.execute("SELECT * FROM chat_rooms ORDER BY name").fetchall()
     cards = "".join(
         f'<div class="card"><h3>{esc(r["name"])}</h3>'
-        f'<p><a class="btn" href="/chat/{r["id"]}">Join chat</a> <a class="btn" href="/chat/{r["id"]}/video">Video meeting</a></p></div>' for r in rooms)
+        f'<p><a class="btn" href="/chat/{r["id"]}">Join chat</a></p></div>' for r in rooms)
     return page("Chat rooms", f"""<div class="card"><h2>Chat rooms</h2>
     <p class="muted">Text chat only — these rooms do not start a video call.</p>
     <form method="post">{field("New room name", "name", required=True)}
