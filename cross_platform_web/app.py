@@ -255,26 +255,31 @@ def page(title, body, u=None):
 LAYOUT = """<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{ title }} - Live Meeting</title>
-<style>
-:root{--navy:#063B78;--blue:#0878D1;--light:#EAF5FF;--bg:#f4f8fc;--surface:#fff;--ink:#12283e;--muted:#5d6f84;--line:#dbe7f3}
-*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink)}
-header{background:linear-gradient(100deg,#04294f,#063B78 55%,#0878D1);color:#fff;padding:16px 20px}
-header a{color:#fff;text-decoration:none}nav{display:flex;gap:14px;flex-wrap:wrap;margin-top:8px}
-nav a{color:#dbeeff}main{max-width:980px;margin:0 auto;padding:24px 20px}
-.hero{background:linear-gradient(125deg,#04294f,#063B78 40%,#0878D1 75%,#5db2f0);color:#fff;border-radius:20px;padding:32px;margin-bottom:22px}
-.hero h1{margin:0 0 8px}.hero p{color:#dbeeff}
-.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px;margin-bottom:18px;box-shadow:0 10px 28px rgba(6,59,120,.08)}
+<style>:root{--ink:#16130E;--paper:#F4F1EA;--lime:#D7FF3E;--orange:#FF7A00;--surface:#fff;--muted:#6B6455;--line:#16130E}
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--paper);color:var(--ink)}
+h1,h2,h3{font-weight:800;letter-spacing:-.02em}
+header{position:fixed;left:0;top:0;bottom:0;width:240px;background:var(--ink);color:#fff;padding:26px 20px;overflow-y:auto}
+header a{color:#fff;text-decoration:none}header>a:first-child strong{font-size:1.35rem}header>a:first-child strong::before{content:"● ";color:var(--lime)}
+header>div{color:#B9B2A4;margin-top:6px;font-size:.9rem}
+nav{display:flex;flex-direction:column;gap:6px;margin-top:26px}
+nav a{color:#EDEAE2;cursor:pointer;padding:10px 14px;border-radius:10px;border:2px solid transparent;font-weight:600}nav a:hover{background:#2A261F;border-color:var(--lime);color:#fff}
+main{margin-left:240px;max-width:900px;padding:28px 26px}
+.hero{background:var(--ink);color:#fff;border:3px solid var(--ink);border-radius:20px;padding:34px;margin-bottom:22px;box-shadow:8px 8px 0 var(--lime)}
+.hero h1{margin:0 0 8px;font-size:2rem;text-transform:uppercase}.hero p{color:#D8D2C4}
+.card{background:var(--surface);border:2px solid var(--ink);border-radius:16px;padding:20px;margin-bottom:18px;box-shadow:5px 5px 0 var(--ink)}
 .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
-label{display:block;margin:10px 0 4px;font-weight:600}
-input,select,textarea{width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;font:inherit}
-button,.btn{display:inline-block;background:var(--blue);color:#fff;border:0;border-radius:10px;padding:11px 20px;font:inherit;cursor:pointer;text-decoration:none}
-button.secondary,.btn.secondary{background:#fff;color:var(--navy);border:1px solid var(--line)}
-table{width:100%;border-collapse:collapse}th,td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:left}
-.table-wrap{overflow-x:auto}.flash{background:#fff3cd;border:1px solid #ffe08a;padding:10px 14px;border-radius:10px}
-.pill{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.4);border-radius:999px;padding:3px 10px;font-size:.85rem}
-.muted{color:var(--muted)}footer{padding:20px;text-align:center;color:var(--muted)}
-@media(max-width:520px){.grid{grid-template-columns:1fr}main{padding:16px 12px}.hero{padding:22px 18px}}
-</style></head><body>
+label{display:block;margin:10px 0 4px;font-weight:700}
+input,select,textarea{width:100%;padding:10px;border:2px solid var(--ink);border-radius:12px;font:inherit;background:#fff}input:focus,select:focus,textarea:focus{outline:3px solid var(--lime);outline-offset:1px}
+button,.btn{display:inline-block;background:var(--lime);color:var(--ink);border:2px solid var(--ink);border-radius:999px;padding:11px 22px;font:inherit;font-weight:800;cursor:pointer;text-decoration:none;box-shadow:3px 3px 0 var(--ink)}
+button.secondary,.btn.secondary{background:#fff;color:var(--ink)}
+table{width:100%;border-collapse:collapse}th,td{padding:9px 10px;border-bottom:2px solid #E7E1D3;text-align:left}
+.table-wrap{overflow-x:auto}.flash{background:#FFF3C4;border:2px solid var(--ink);padding:10px 14px;border-radius:12px}
+.pill{background:var(--lime);color:var(--ink);border:2px solid var(--lime);border-radius:999px;padding:3px 10px;font-size:.85rem;font-weight:700}
+.muted{color:var(--muted)}footer{margin-left:240px;padding:20px;text-align:center;color:var(--muted)}
+.chatlog{display:flex;flex-direction:column;gap:10px;margin:14px 0}
+.msg{border:2px solid var(--ink);border-radius:16px;padding:10px 14px;background:var(--paper);max-width:85%}
+.msg.mine{background:var(--lime);margin-left:auto}
+@media(max-width:760px){header{position:static;width:auto}nav{flex-direction:row;flex-wrap:wrap}main,footer{margin-left:0}.grid{grid-template-columns:1fr}main{padding:16px 12px}.hero{padding:22px 18px}}</style></head><body>
 <header><a href="/"><strong>Live Meeting</strong></a><div>Text chat, mail and appointments — in one place.</div>{{ nav|safe }}</header>
 <main>{{ body|safe }}</main>
 <footer>Live Meeting web version &middot; Text chat only — this is not video calling &middot; Demo data only</footer>
@@ -705,11 +710,11 @@ def chat_room(rid):
         "SELECT m.*, us.name AS user_name FROM chat_messages m JOIN users us ON us.id=m.user_id"
         " WHERE m.room_id=? ORDER BY m.id", (rid,)).fetchall()
     msgs_html = "".join(
-        f'<p><b>{esc(m["user_name"])}</b> <span class="muted">{esc(m["created_at"])}</span><br>'
-        f'{esc(m["body"])}</p>' for m in msgs)
+        f"<div class=\"msg{' mine' if m['user_id']==u['id'] else ''}\"><b>{esc(m['user_name'])}</b> <span class=\"muted\">{esc(m['created_at'])}</span><br>"
+        f'{esc(m["body"])}</div>' for m in msgs)
     return page(f"Chat — {room['name']}", f"""<div class="card"><h2>{esc(room["name"])}</h2>
     <p class="muted">Text chat only — not a video meeting.</p>
-    <div>{msgs_html or "<p>No messages yet. Say hello!</p>"}</div>
+    <div class="chatlog">{msgs_html or "<p>No messages yet. Say hello!</p>"}</div>
     <form method="post"><label>Message</label>
     <input type="text" name="body" required>
     <p><button>Send message</button> <a class="btn secondary" href="/chat">All rooms</a></p></form></div>""")
