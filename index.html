@@ -266,7 +266,7 @@ function showView(v,arg){
     var room=DB.rooms.filter(function(r){return r.id===arg;})[0];
     if(!room){flash("Room not found.");return showView("chat");}
     var msgs=DB.messages.filter(function(m){return m.room===room.id;}).map(function(m){var s=userById(m.user);var mine=u&&m.user===u.id;return '<div class="msg'+(mine?' mine':'')+'"><b>'+esc(s?s.name:"?")+'</b> <span class="muted">'+esc(m.at)+'</span><br>'+esc(m.body)+'</div>';}).join("");
-    setView('<div class="card"><h2>'+esc(room.name)+'</h2><p class="muted">Text chat only — not a video meeting.</p><div class="chatlog">'+(msgs||"<p>No messages yet. Say hello!</p>")+'</div><form onsubmit="postChat(event,'+room.id+')"><label>Message</label><input id="chat_body" required><p><button>Send message</button> <button class="secondary" type="button" onclick="showView(\'chat\')">All rooms</button> <button type="button" onclick="showView(\'video\',room.id)">Video meeting</button></p></form></div>');
+    setView('<div class="card"><h2>'+esc(room.name)+'</h2><p class="muted">Text chat only — not a video meeting.</p><div class="chatlog">'+(msgs||"<p>No messages yet. Say hello!</p>")+'</div><form onsubmit="postChat(event,'+room.id+')"><label>Message</label><input id="chat_body" required><p><button>Send message</button> <button class="secondary" type="button" onclick="showView(\'chat\')">All rooms</button></p></form></div>');
   }else if(v==="video"){
     if(!u){flash("Please log in first.");return showView("auth");}
     var room=DB.rooms.filter(function(r){return r.id===arg;})[0];
