@@ -41,10 +41,78 @@ from flask import Flask, flash, g, redirect, render_template_string, request, se
 from werkzeug.security import check_password_hash, generate_password_hash
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATABASE = os.path.join(BASE_DIR, "live_meeting.db")
+DATABASE = os.environ.get("LM_DATABASE", os.path.join(BASE_DIR, "live_meeting.db"))
 
 app = Flask(__name__)
-app.secret_key = "live-meeting-dev-key-change-me"
+app.secret_key = os.environ.get("SECRET_KEY", "live-meeting-dev-key-change-me")
+
+# --- Database: SQLite by default, PostgreSQL when DATABASE_URL is set ---
+# Render/Neon hosted mode sets DATABASE_URL; local runs keep using SQLite.
+DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
+try:
+    import psycopg
+    from psycopg import errors as _pg_errors
+    _PG_INTEGRITY = (_pg_errors.UniqueViolation,)
+except Exception:
+    psycopg = None
+    _PG_INTEGRITY = ()
+DB_INTEGRITY_ERROR = (sqlite3.IntegrityError,) + _PG_INTEGRITY
+
+
+class Row(dict):
+    """A row that works like sqlite3.Row: access by column name OR index."""
+
+    def __getitem__(self, key):
+        if isinstance(key, int):
+            return list(self.values())[key]
+        return super().__getitem__(key)
+
+
+class _PgCursor:
+    """Wraps a psycopg cursor: translates ? placeholders and OR IGNORE."""
+
+    def __init__(self, cur):
+        self._cur = cur
+
+    def _convert(self, row):
+        if row is None:
+            return None
+        cols = [d[0] for d in self._cur.description]
+        return Row(zip(cols, row))
+
+    def execute(self, sql, params=()):
+        q = sql.replace("?", "%s")
+        if q.lstrip().upper().startswith("INSERT OR IGNORE INTO"):
+            q = q.replace("INSERT OR IGNORE INTO", "INSERT INTO", 1) + " ON CONFLICT DO NOTHING"
+        self._cur.execute(q, params)
+        return self
+
+    def fetchone(self):
+        return self._convert(self._cur.fetchone())
+
+    def fetchall(self):
+        return [self._convert(r) for r in self._cur.fetchall()]
+
+    def close(self):
+        self._cur.close()
+
+
+class _PgConn:
+    """Wraps a psycopg connection so the app code keeps using db.execute()."""
+
+    def __init__(self, conn):
+        self._conn = conn
+
+    def execute(self, sql, params=()):
+        cur = self._conn.cursor()
+        return _PgCursor(cur).execute(sql, params)
+
+    def commit(self):
+        self._conn.commit()
+
+    def close(self):
+        self._conn.close()
+
 
 MASTER_KINDS = ["country", "state", "city", "industry", "income", "interest", "occupation"]
 MAIL_FOLDERS = ["inbox", "sent", "draft", "saved"]
@@ -53,8 +121,11 @@ EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 def get_db():
     if "db" not in g:
-        g.db = sqlite3.connect(DATABASE)
-        g.db.row_factory = sqlite3.Row
+        if DATABASE_URL and psycopg is not None:
+            g.db = _PgConn(psycopg.connect(DATABASE_URL))
+        else:
+            g.db = sqlite3.connect(DATABASE)
+            g.db.row_factory = sqlite3.Row
     return g.db
 
 
@@ -67,7 +138,7 @@ def close_db(_exc=None):
 
 def init_db():
     db = get_db()
-    db.executescript("""
+    _schema = """
     CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL, email TEXT UNIQUE NOT NULL,
@@ -118,9 +189,23 @@ def init_db():
         user_id INTEGER NOT NULL, login_at TEXT DEFAULT (datetime('now')),
         ip TEXT DEFAULT ''
     );
-    """)
-    # PRAGMA migration guards (older DBs gain new columns without a reset)
-    cols = [r[1] for r in db.execute("PRAGMA table_info(users)").fetchall()]
+    """
+    if DATABASE_URL and psycopg is not None:
+        _schema = _schema.replace(
+            "INTEGER PRIMARY KEY AUTOINCREMENT",
+            "INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY")
+        _schema = _schema.replace("datetime('now')", "now()::text")
+    for _stmt in _schema.split(";"):
+        _stmt = _stmt.strip()
+        if _stmt:
+            db.execute(_stmt)
+    # (schema statements above replace the old executescript block)
+    # Migration guards (older DBs gain new columns without a reset)
+    if DATABASE_URL and psycopg is not None:
+        cols = [r["column_name"] for r in db.execute(
+            "SELECT column_name FROM information_schema.columns WHERE table_name='users'").fetchall()]
+    else:
+        cols = [r[1] for r in db.execute("PRAGMA table_info(users)").fetchall()]
     for col, ddl in [("interest", "TEXT DEFAULT ''"), ("income", "TEXT DEFAULT ''")]:
         if col not in cols:
             db.execute(f"ALTER TABLE users ADD COLUMN {col} {ddl}")
@@ -353,7 +438,9 @@ def home():
         f'<p><a class="btn" href="/chat/{r["id"]}">Join chat</a></p></div>' for r in rooms)
     video_cards = "".join(
         f'<div class="card"><h3>{esc(r["name"])}</h3>'
-        f'<p><a class="btn" href="/chat/{r["id"]}/video">Start video meeting</a></p></div>' for r in rooms)
+        f'<p><a class="btn" href="/chat/{r["id"]}/video">Start video meeting</a> '
+        f'<button class="secondary" onclick="navigator.clipboard&&navigator.clipboard.writeText(\'https://meet.jit.si/LM-Rishabh4630-Room{r["id"]}\').then(()=>this.textContent=\'Copied!\')">Copy meeting link</button></p>'
+        f'<p class="muted" style="word-break:break-all">Share link: <a target="_blank" href="https://meet.jit.si/LM-Rishabh4630-Room{r["id"]}">meet.jit.si/LM-Rishabh4630-Room{r["id"]}</a></p></div>' for r in rooms)
     daily_city = (u["city"] if u and u["city"] else "Lucknow").replace('"', "").replace("'", "")
     daily_tz = {"USA": "America/New_York", "UK": "Europe/London"}.get(u["country"] if u else "", "Asia/Kolkata")
     body = f"""<div class="hero"><p>BUS &amp; MEETING — TEXT CHAT, MAIL &amp; APPOINTMENTS</p>
@@ -466,7 +553,7 @@ def signup():
                 db.commit()
                 flash("Account created. Please log in.")
                 return redirect(url_for("login"))
-            except sqlite3.IntegrityError:
+            except DB_INTEGRITY_ERROR:
                 flash("That email is already registered.")
     return page("Sign Up", f"""<div class="card"><h2>Sign Up</h2><form method="post">
     {field("Full name", "name", required=True)}
@@ -818,7 +905,7 @@ def chat_list():
                 db.execute("INSERT INTO chat_rooms (name, created_by) VALUES (?, ?)", (name, u["id"]))
                 db.commit()
                 flash("Chat room created.")
-            except sqlite3.IntegrityError:
+            except DB_INTEGRITY_ERROR:
                 flash("A room with that name already exists.")
         return redirect(url_for("chat_list"))
     rooms = db.execute("SELECT * FROM chat_rooms ORDER BY name").fetchall()
@@ -920,7 +1007,7 @@ def masters():
                 db.execute("INSERT INTO masters (kind, name) VALUES (?, ?)", (kind, name))
                 db.commit()
                 flash("Master added.")
-            except sqlite3.IntegrityError:
+            except DB_INTEGRITY_ERROR:
                 flash("That master already exists.")
         return redirect(url_for("masters"))
     rows = db.execute("SELECT * FROM masters ORDER BY kind, name").fetchall()
@@ -1001,4 +1088,5 @@ def feedback():
 
 
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=5000, debug=False)
+    app.run(host=os.environ.get("HOST", "127.0.0.1"),
+            port=int(os.environ.get("PORT", "5000")), debug=False)
