@@ -197,6 +197,11 @@ def current_user():
     return get_db().execute("SELECT * FROM users WHERE id=?", (uid,)).fetchone()
 
 
+def admin_email():
+    # Owner admin, set only via environment (never in code). Unset = nobody auto-admin.
+    return os.environ.get("ADMIN_EMAIL", "").strip().lower()
+
+
 def require_login():
     if not current_user():
         flash("Please log in first.")
@@ -383,9 +388,10 @@ def signup():
         else:
             db = get_db()
             try:
+                role = "admin" if (admin_email() and email == admin_email()) else "user"
                 db.execute(
-                    "INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)",
-                    (name, email, generate_password_hash(pw)))
+                    "INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)",
+                    (name, email, generate_password_hash(pw), role))
                 db.commit()
                 flash("Account created. Please log in.")
                 return redirect(url_for("login"))
@@ -408,6 +414,9 @@ def login():
         db = get_db()
         user = db.execute("SELECT * FROM users WHERE email=?", (email,)).fetchone()
         if user and check_password_hash(user["password_hash"], pw):
+            if admin_email() and email == admin_email() and user["role"] != "admin":
+                db.execute("UPDATE users SET role='admin' WHERE id=?", (user["id"],))
+                db.commit()
             session["user_id"] = user["id"]
             db.execute("INSERT INTO login_history (user_id, ip) VALUES (?, ?)",
                        (user["id"], request.remote_addr or ""))
