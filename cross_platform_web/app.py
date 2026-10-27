@@ -438,7 +438,9 @@ def home():
         f'<p><a class="btn" href="/chat/{r["id"]}">Join chat</a></p></div>' for r in rooms)
     video_cards = "".join(
         f'<div class="card"><h3>{esc(r["name"])}</h3>'
-        f'<p><a class="btn" href="/chat/{r["id"]}/video">Start video meeting</a></p></div>' for r in rooms)
+        f'<p><a class="btn" href="/chat/{r["id"]}/video">Start video meeting</a> '
+        f'<button class="secondary" onclick="navigator.clipboard&&navigator.clipboard.writeText(\'https://meet.jit.si/LM-Rishabh4630-Room{r["id"]}\').then(()=>this.textContent=\'Copied!\')">Copy meeting link</button></p>'
+        f'<p class="muted" style="word-break:break-all">Share link: <a target="_blank" href="https://meet.jit.si/LM-Rishabh4630-Room{r["id"]}">meet.jit.si/LM-Rishabh4630-Room{r["id"]}</a></p></div>' for r in rooms)
     daily_city = (u["city"] if u and u["city"] else "Lucknow").replace('"', "").replace("'", "")
     daily_tz = {"USA": "America/New_York", "UK": "Europe/London"}.get(u["country"] if u else "", "Asia/Kolkata")
     body = f"""<div class="hero"><p>BUS &amp; MEETING — TEXT CHAT, MAIL &amp; APPOINTMENTS</p>
