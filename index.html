@@ -5,7 +5,7 @@
 *{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink)}
 h1,h2,h3{font-weight:750;letter-spacing:-.02em}
 header{position:sticky;top:0;z-index:10;background:rgba(15,17,23,.92);backdrop-filter:blur(10px);color:#fff;padding:16px 20px;border-bottom:1px solid var(--line)}
-header a{color:#fff;text-decoration:none}header>a:first-child strong{font-size:1.3rem}header>a:first-child strong::before{content:"● ";color:var(--violet2)}
+header a{color:#fff;text-decoration:none}header>a:first-child strong{font-size:1.3rem}
 header>div{color:var(--muted);margin-top:4px;font-size:.9rem}
 nav{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 nav a{color:#C6CADD;cursor:pointer;padding:8px 14px;border-radius:999px;border:1px solid transparent;font-weight:600}nav a:hover{background:var(--surface2);border-color:var(--line);color:#fff}
@@ -58,8 +58,11 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 4px rgba(139,92,246,.25
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}.card button,.card .btn{margin:2px 6px 2px 0}main{max-width:none;padding:32px 40px}
 header{padding:16px 40px}
 .grid,.daily{grid-template-columns:repeat(auto-fill,minmax(280px,1fr))}
-@media(max-width:520px){main{padding:20px 14px}header{padding:16px 20px}}</style></head><body>
-<header><a href="#" onclick="showView('home');return false;"><strong>Live Meeting</strong></a>
+@media(max-width:520px){main{padding:20px 14px}header{padding:16px 20px}}.logo-badge{position:relative;overflow:hidden;display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:14px;background:linear-gradient(135deg,#8B5CF6,#EC4899);border:1px solid rgba(255,255,255,.28);color:#fff;font-weight:900;font-size:15px;letter-spacing:.03em;margin-right:10px;box-shadow:0 8px 20px rgba(139,92,246,.45), inset 0 1px 0 rgba(255,255,255,.4);text-shadow:0 1px 2px rgba(0,0,0,.25);flex-shrink:0}
+.logo-badge::after{content:"";position:absolute;top:0;left:-60%;width:50%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.35),transparent);transform:skewX(-20deg)}
+header>a:first-child:hover .logo-badge{filter:brightness(1.15)}
+header>a:first-child{display:inline-flex;align-items:center}</style></head><body>
+<header><a href="#" onclick="showView('home');return false;"><span class="logo-badge">RS</span><strong>Live Meeting</strong></a>
 <div>Text chat, mail and appointments — in one place.</div>
 <nav id="topnav"></nav></header>
 <main><div id="flash"></div><div id="view"></div></main>
