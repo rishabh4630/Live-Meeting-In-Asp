@@ -25,7 +25,7 @@ table{width:100%;border-collapse:collapse}th,td{padding:9px 10px;border-bottom:1
 .chatlog{display:flex;flex-direction:column;gap:10px;margin:14px 0}
 .msg{border:1px solid var(--line);border-radius:16px;padding:10px 14px;background:var(--surface2);max-width:85%}
 .msg.mine{background:linear-gradient(100deg,var(--violet),#7C3AED);border-color:transparent;margin-left:auto}
-@media(max-width:520px){.grid{grid-template-columns:1fr}main{padding:16px 12px}.hero{padding:22px 18px}}.daily{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px}@media(max-width:520px){.daily{grid-template-columns:1fr}}</style></head><body>
+@media(max-width:520px){.grid{grid-template-columns:1fr}main{padding:16px 12px}.hero{padding:22px 18px}}.daily{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px}@media(max-width:520px){.daily{grid-template-columns:1fr}}</style></head><body>
 <header><a href="#" onclick="showView('home');return false;"><strong>Live Meeting</strong></a>
 <div>Text chat, mail and appointments — in one place.</div>
 <nav id="topnav"></nav></header>
@@ -70,7 +70,7 @@ function userById(id){return DB.users.filter(function(u){return u.id===id;})[0]|
 function userByEmail(e){return DB.users.filter(function(u){return u.email===e;})[0]||null;}
 function flash(m){document.getElementById("flash").innerHTML='<p class="flash">'+esc(m)+'</p>';}
 function wmoLabel(c){if(c===0)return "Clear sky";if(c===1)return "Mainly clear";if(c===2)return "Partly cloudy";if(c===3)return "Overcast";if(c===45||c===48)return "Foggy";if(c===51||c===53||c===55)return "Drizzle";if(c===61||c===63||c===65)return "Rain";if(c===71||c===73||c===75)return "Snow";if(c===80||c===81||c===82)return "Rain showers";if(c===95)return "Thunderstorm";return "Weather update";}
-function loadDaily(city){
+function loadDaily(city,country){
   var w=document.getElementById("daily-weather"),t=document.getElementById("daily-tip");
   if(!w||!t)return;
   fetch("https://geocoding-api.open-meteo.com/v1/search?name="+encodeURIComponent(city)+"&count=1").then(function(r){return r.json();}).then(function(g){
@@ -83,6 +83,41 @@ function loadDaily(city){
   fetch("https://api.adviceslip.com/advice").then(function(r){return r.json();}).then(function(d){
     t.innerHTML="\u201C"+esc(d.slip.advice)+"\u201D";
   }).catch(function(){t.innerHTML="Icebreaker unavailable right now.";});
+  var ck=document.getElementById("daily-clock");
+  if(ck){
+    var tz = (country==="USA") ? "America/New_York" : (country==="UK") ? "Europe/London" : "Asia/Kolkata";
+    fetch("https://timeapi.io/api/time/current/zone?timeZone="+encodeURIComponent(tz)).then(function(r){return r.json();}).then(function(d){
+      ck.innerHTML="<b>"+esc(d.time)+"</b> · "+esc(d.dayOfWeek)+" · "+esc(tz);
+    }).catch(function(){ck.innerHTML="Time unavailable right now.";});
+  }
+}
+function loadApptForecast(city){
+  var cells=document.querySelectorAll("td.fc");
+  if(!cells.length)return;
+  var dates=[];
+  cells.forEach(function(c){if(dates.indexOf(c.getAttribute("data-date"))<0)dates.push(c.getAttribute("data-date"));});
+  var today=new Date();today.setHours(0,0,0,0);
+  var max=new Date(today);max.setDate(max.getDate()+16);
+  fetch("https://geocoding-api.open-meteo.com/v1/search?name="+encodeURIComponent(city)+"&count=1").then(function(r){return r.json();}).then(function(g){
+    if(!g.results||!g.results.length)throw new Error("no city");
+    var lat=g.results[0].latitude,lon=g.results[0].longitude;
+    dates.forEach(function(ds){
+      var d=new Date(ds+"T00:00:00");
+      if(isNaN(d.getTime())||d<today||d>max){
+        cells.forEach(function(c){if(c.getAttribute("data-date")===ds)c.textContent="Forecast within 16 days only";});
+        return;
+      }
+      fetch("https://api.open-meteo.com/v1/forecast?latitude="+lat+"&longitude="+lon+"&daily=temperature_2m_max,temperature_2m_min,weather_code&timezone=auto&start_date="+ds+"&end_date="+ds).then(function(r){return r.json();}).then(function(f){
+        if(!f.daily||!f.daily.time||!f.daily.time.length)throw new Error("no forecast");
+        var txt=Math.round(f.daily.temperature_2m_min[0])+"\u00B0–"+Math.round(f.daily.temperature_2m_max[0])+"\u00B0C, "+wmoLabel(f.daily.weather_code[0]);
+        cells.forEach(function(c){if(c.getAttribute("data-date")===ds)c.textContent=txt;});
+      }).catch(function(){
+        cells.forEach(function(c){if(c.getAttribute("data-date")===ds)c.textContent="Forecast unavailable";});
+      });
+    });
+  }).catch(function(){
+    cells.forEach(function(c){c.textContent="Forecast unavailable";});
+  });
 }
 function nav(){
   var u=me(),links=['<a onclick="showView(\'home\')">Home</a>','<a onclick="showView(\'chat\')">Chat</a>','<a onclick="showView(\'appts\')">Appointments</a>','<a onclick="showView(\'mail\')">Mail</a>','<a onclick="showView(\'feedback\')">Feedback</a>','<a onclick="showView(\'about\')">About</a>'];
@@ -100,11 +135,11 @@ function showView(v,arg){
   if(v==="home"){
     var rooms=DB.rooms.map(function(r){return '<div class="card"><h3>'+esc(r.name)+'</h3><p><button onclick="showView(\'room\','+r.id+')">Join chat</button></p></div>';}).join("");
     setView('<div class="hero"><p>TEXT CHAT, MAIL &amp; APPOINTMENTS</p><h1>Meet, message and plan — in one place.</h1><p>Register, send internal mail, book appointments and join a live text chat room. This is text chat only, not video calling.</p><p><button onclick="showView(\'chat\')">Open Chat</button> <button class="secondary" onclick="showView(\'appts\')">Appointments</button></p></div>'
-    +'<div class="daily"><div class="card"><h3>Today in your city</h3><p id="daily-weather" class="muted">Loading weather...</p></div><div class="card"><h3>Meeting icebreaker</h3><p id="daily-tip" class="muted">Loading...</p></div></div>'
+    +'<div class="daily"><div class="card"><h3>Today in your city</h3><p id="daily-weather" class="muted">Loading weather...</p></div><div class="card"><h3>Meeting icebreaker</h3><p id="daily-tip" class="muted">Loading...</p></div><div class="card"><h3>Meeting time now</h3><p id="daily-clock" class="muted">Loading time...</p></div></div>'
     +'<div class="grid"><div class="card"><h3>Users</h3><p><b>'+DB.users.length+'</b></p></div><div class="card"><h3>Chat rooms</h3><p><b>'+DB.rooms.length+'</b></p></div><div class="card"><h3>Mail</h3><p><b>'+DB.mails.length+'</b></p></div><div class="card"><h3>Scheduled appointments</h3><p><b>'+DB.appts.filter(function(a){return a.status==="Scheduled";}).length+'</b></p></div></div>'
     +'<h2>Chat rooms</h2><div class="grid">'+(rooms||"<p>No rooms yet.</p>")+'</div>'
     +'<div class="card"><h2>What this is</h2><p class="muted">A browser demo of the Live Meeting web remake. The original used ASP.NET and SQL Server; this demo keeps the same features in your browser only. Chat here is live text chat in a room — it does not start a video call.</p></div>');
-  loadDaily(u&&u.city?u.city:"Lucknow");}else if(v==="about"){
+  loadDaily(u&&u.city?u.city:"Lucknow",u&&u.country?u.country:"India");}else if(v==="about"){
     setView('<div class="card"><h2>About Live Meeting</h2><p>Live Meeting is a small collaboration app: user accounts, internal mail, appointments with a calendar view, admin masters, feedback, and live text chat rooms. It is a student/demo remake of an ASP.NET Web Forms project.</p><p class="muted">No real contact details are published here. This is demo data only.</p></div>');
   }else if(v==="auth"){
     setView('<div class="card"><h2>Login</h2><form onsubmit="doLogin(event)"><label>Email</label><input id="li_email" type="email" required><label>Password</label><input id="li_pw" type="password" required><p><button>Log in</button></p></form><p class="muted">Demo admin: admin@livemeeting.demo / Admin123 (demo only).</p></div>'
@@ -139,8 +174,8 @@ function showView(v,arg){
     if(!u){flash("Please log in first.");return showView("auth");}
     var sel=arg||"";
     var rows=DB.appts.filter(function(a){return a.user===u.id&&(!sel||a.date===sel);});
-    var rowsHtml=rows.map(function(a){return '<tr><td>'+esc(a.title)+'</td><td>'+esc(a.with)+'</td><td>'+esc(a.date)+' '+esc(a.time)+'</td><td>'+esc(a.status)+'</td><td><button class="secondary" onclick="cancelAppt('+a.id+')">Cancel</button></td></tr>';}).join("");
-    setView('<div class="card"><h2>Appointments</h2><form onsubmit="event.preventDefault();showView(\'appts\',document.getElementById(\'cal_date\').value);"><label>Calendar — show date</label><input id="cal_date" type="date" value="'+esc(sel)+'"><p><button>Show</button> <button class="secondary" type="button" onclick="showView(\'newappt\')">New appointment</button></p></form><div class="table-wrap"><table><tr><th>Title</th><th>With</th><th>Date &amp; time</th><th>Status</th><th></th></tr>'+(rowsHtml||'<tr><td colspan="5">No appointments yet.</td></tr>')+'</table></div></div>');
+    var rowsHtml=rows.map(function(a){return '<tr><td>'+esc(a.title)+'</td><td>'+esc(a.with)+'</td><td>'+esc(a.date)+' '+esc(a.time)+'</td><td>'+esc(a.status)+'</td><td class="fc" data-date="'+esc(a.date)+'">Loading...</td><td><button class="secondary" onclick="cancelAppt('+a.id+')">Cancel</button></td></tr>';}).join("");
+    setView('<div class="card"><h2>Appointments</h2><form onsubmit="event.preventDefault();showView(\'appts\',document.getElementById(\'cal_date\').value);"><label>Calendar — show date</label><input id="cal_date" type="date" value="'+esc(sel)+'"><p><button>Show</button> <button class="secondary" type="button" onclick="showView(\'newappt\')">New appointment</button></p></form><div class="table-wrap"><table><tr><th>Title</th><th>With</th><th>Date &amp; time</th><th>Status</th><th>Forecast</th><th></th></tr>'+(rowsHtml||'<tr><td colspan="6">No appointments yet.</td></tr>')+'</table></div></div>');loadApptForecast(u&&u.city?u.city:"Lucknow");
   }else if(v==="newappt"){
     if(!u){flash("Please log in first.");return showView("auth");}
     setView('<div class="card"><h2>New appointment</h2><form onsubmit="createAppt(event)"><label>Title</label><input id="ap_title" required><label>With (person)</label><input id="ap_with" required><label>Date</label><input id="ap_date" type="date" value="2026-11-05" required><label>Time</label><input id="ap_time" type="time" value="11:00" required><label>Notes</label><textarea id="ap_notes" rows="4"></textarea><p><button>Create appointment</button></p></form></div>');
