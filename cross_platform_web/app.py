@@ -346,6 +346,17 @@ def home():
         var lat=g.results[0].latitude,lon=g.results[0].longitude,name=g.results[0].name;
         return fetch("https://api.open-meteo.com/v1/forecast?latitude="+lat+"&longitude="+lon+"&current=temperature_2m,weather_code&timezone=auto").then(function(r){{return r.json();}}).then(function(f){{
           w.innerHTML="<b>"+esc(name)+"</b><br>"+Math.round(f.current.temperature_2m)+"°C, "+wmoLabel(f.current.weather_code)+" — good to know before you step out for a meeting.";
+          fetch("https://air-quality-api.open-meteo.com/v1/air-quality?latitude="+lat+"&longitude="+lon+"&current=pm2_5,us_aqi").then(function(r){{return r.json();}}).then(function(a){{
+            if(a.current&&a.current.us_aqi!=null){{
+              var q=a.current.us_aqi, label=q<=50?"Good":q<=100?"Moderate":q<=150?"Unhealthy for sensitive groups":q<=200?"Unhealthy":q<=300?"Very unhealthy":"Hazardous";
+              w.innerHTML+="<br>Air quality: AQI "+Math.round(q)+" ("+label+"), PM2.5 "+Math.round(a.current.pm2_5)+" µg/m³.";
+            }}
+          }}).catch(function(){{}});
+          fetch("https://api.open-meteo.com/v1/forecast?latitude="+lat+"&longitude="+lon+"&daily=sunrise,sunset&timezone=auto&forecast_days=1").then(function(r){{return r.json();}}).then(function(s){{
+            if(s.daily&&s.daily.sunrise&&s.daily.sunrise.length){{
+              w.innerHTML+="<br>Sunrise "+esc(s.daily.sunrise[0].slice(11,16))+", sunset "+esc(s.daily.sunset[0].slice(11,16))+".";
+            }}
+          }}).catch(function(){{}});
         }});
       }}).catch(function(){{w.innerHTML="Weather unavailable right now.";}});
       fetch("https://api.adviceslip.com/advice").then(function(r){{return r.json();}}).then(function(d){{
@@ -353,9 +364,19 @@ def home():
       }}).catch(function(){{tip.innerHTML="Icebreaker unavailable right now.";}});
       var ck=document.getElementById("daily-clock");
       if(ck){{
-        fetch("https://timeapi.io/api/time/current/zone?timeZone="+encodeURIComponent("{daily_tz}")).then(function(r){{return r.json();}}).then(function(d){{
-          ck.innerHTML="<b>"+esc(d.time)+"</b> · "+esc(d.dayOfWeek)+" · "+esc("{daily_tz}");
-        }}).catch(function(){{ck.innerHTML="Time unavailable right now.";}});
+        var tz="{daily_tz}";
+        var zones=["Asia/Kolkata","America/New_York","Europe/London"];
+        zones.sort(function(a,b){{return (a===tz?-1:0)-(b===tz?-1:0);}});
+        var done=0;
+        zones.forEach(function(z){{
+          fetch("https://timeapi.io/api/time/current/zone?timeZone="+encodeURIComponent(z)).then(function(r){{return r.json();}}).then(function(d){{
+            var short=z.split("/")[1].replace("_"," ");
+            var line="<b>"+esc(d.time)+"</b> · "+esc(short);
+            if(z===tz){{line="<b>"+esc(d.time)+"</b> · "+esc(d.dayOfWeek)+" · "+esc(short)+" (yours)";}}
+            ck.innerHTML=(done===0?"":ck.innerHTML+"<br>")+line;
+            done++;
+          }}).catch(function(){{done++;if(done===zones.length&&!ck.innerHTML)ck.innerHTML="Time unavailable right now.";}});
+        }});
       }}
     }})();
     </script>"""
@@ -368,7 +389,18 @@ def about():
     <p>Live Meeting is a small collaboration app: user accounts, internal mail,
     appointments with a calendar view, admin masters, feedback, and live text
     chat rooms. It is a student/demo remake of an ASP.NET Web Forms project.</p>
-    <p class="muted">No real contact details are published here. This is demo data only.</p></div>""")
+    <p class="muted">No real contact details are published here. This is demo data only.</p>
+    <h3>Thought of the day</h3><p id="about-quote" class="muted">Loading...</p></div>
+    <script>
+    (function(){
+      var q=document.getElementById("about-quote");
+      if(!q)return;
+      fetch("https://zenquotes.io/api/random").then(function(r){return r.json();}).then(function(d){
+        if(!d||!d.length)throw new Error("no quote");
+        q.innerHTML="“"+d[0].q+"” — "+d[0].a;
+      }).catch(function(){q.innerHTML="Quote unavailable right now.";});
+    })();
+    </script>""")
 
 
 # ---------------------------------------------------------------------------
