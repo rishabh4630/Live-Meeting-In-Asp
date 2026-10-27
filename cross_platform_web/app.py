@@ -20,8 +20,8 @@ What this version covers (mirroring the original):
       Delete (this is mail inside the app, not real email delivery)
     * Appointments: create / list / cancel, calendar view by date
     * Text chat rooms: create / join a room, post messages
-      (TEXT CHAT ONLY. This is not video calling, and the site never
-      claims otherwise.)
+    * Video meetings: per-room Jitsi Meet embed (free public service),
+      reached from the home Video meetings section or any room.
 
 Seed data in this file is DEMO data only, not real people or meetings.
 Demo accounts (change the passwords after first login in a real deploy):
@@ -317,7 +317,7 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 4px rgba(139,92,246,.25
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}.card button,.card .btn{margin:2px 6px 2px 0}</style></head><body>
 <header><a href="/"><strong>Live Meeting</strong></a><div>Text chat, mail and appointments — in one place.</div>{{ nav|safe }}</header>
 <main>{{ body|safe }}</main>
-<footer>Live Meeting web version &middot; Text chat only — this is not video calling &middot; Demo data only</footer>
+<footer>Live Meeting web version &middot; Text chat + Jitsi video meetings &middot; Demo data only</footer>
 </body></html>"""
 
 
@@ -345,12 +345,14 @@ def home():
     room_cards = "".join(
         f'<div class="card"><h3>{esc(r["name"])}</h3>'
         f'<p><a class="btn" href="/chat/{r["id"]}">Join chat</a> <a class="btn" href="/chat/{r["id"]}/video">Video meeting</a></p></div>' for r in rooms)
+    video_cards = "".join(
+        f'<div class="card"><h3>{esc(r["name"])}</h3>'
+        f'<p><a class="btn" href="/chat/{r["id"]}/video">Start video meeting</a></p></div>' for r in rooms)
     daily_city = (u["city"] if u and u["city"] else "Lucknow").replace('"', "").replace("'", "")
     daily_tz = {"USA": "America/New_York", "UK": "Europe/London"}.get(u["country"] if u else "", "Asia/Kolkata")
     body = f"""<div class="hero"><p>BUS &amp; MEETING — TEXT CHAT, MAIL &amp; APPOINTMENTS</p>
     <h1>Meet, message and plan — in one place.</h1>
-    <p>Register, send internal mail, book appointments and join a live text chat room.
-    This is text chat only, not video calling.</p>
+    <p>Register, send internal mail, book appointments, join a live text chat room, or start a real video meeting.</p>
     <p><a class="btn" href="/chat">Open Chat</a> <a class="btn secondary" href="/appointments">Appointments</a></p></div>
     <div class="daily"><div class="card"><h3>Today in your city</h3><p id="daily-weather" class="muted">Loading weather...</p></div><div class="card"><h3>Meeting icebreaker</h3><p id="daily-tip" class="muted">Loading...</p></div><div class="card"><h3>Meeting time now</h3><p id="daily-clock" class="muted">Loading time...</p></div></div>
     <div class="grid">
@@ -359,11 +361,12 @@ def home():
       <div class="card"><h3>Messages &amp; mail</h3><p><b>{stats["mails"]}</b></p></div>
       <div class="card"><h3>Scheduled appointments</h3><p><b>{stats["appts"]}</b></p></div>
     </div>
+    <h2>Video meetings</h2><p class="muted">Real video meeting, powered by Jitsi Meet (free). Pick a room and join on video — camera and microphone permission needed.</p><div class="grid">{video_cards or "<p>No rooms yet.</p>"}</div>
     <h2>Chat rooms</h2><div class="grid">{room_cards or "<p>No rooms yet.</p>"}</div>
     <div class="card"><h2>What this is</h2><p class="muted">A web remake of the original
     ASP.NET Live Meeting project. The original used SQL Server and Web Forms;
     this version uses SQLite and Flask, so it runs on Windows, macOS and Linux.
-    Chat here is live text chat in a room — it does not start a video call.</p></div>
+    Chat here is live text chat in a room — for video, use the Video meetings section above or the Video meeting button on any room (Jitsi Meet).</p></div>
     <script>
     function esc(s){{return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}}
     function wmoLabel(c){{if(c===0)return "Clear sky";if(c===1)return "Mainly clear";if(c===2)return "Partly cloudy";if(c===3)return "Overcast";if(c===45||c===48)return "Foggy";if(c===51||c===53||c===55)return "Drizzle";if(c===61||c===63||c===65)return "Rain";if(c===71||c===73||c===75)return "Snow";if(c===80||c===81||c===82)return "Rain showers";if(c===95)return "Thunderstorm";return "Weather update";}}
