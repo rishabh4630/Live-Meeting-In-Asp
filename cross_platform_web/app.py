@@ -284,7 +284,23 @@ table{width:100%;border-collapse:collapse}th,td{padding:9px 10px;border-bottom:1
 .chatlog{display:flex;flex-direction:column;gap:10px;margin:14px 0}
 .msg{border:1px solid var(--line);border-radius:16px;padding:10px 14px;background:var(--surface2);max-width:85%}
 .msg.mine{background:linear-gradient(100deg,var(--violet),#7C3AED);border-color:transparent;margin-left:auto}
-@media(max-width:520px){.grid{grid-template-columns:1fr}main{padding:16px 12px}.hero{padding:22px 18px}}.daily{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px}@media(max-width:520px){.daily{grid-template-columns:1fr}}</style></head><body>
+@media(max-width:520px){.grid{grid-template-columns:1fr}main{padding:16px 12px}.hero{padding:22px 18px}}.daily{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px}@media(max-width:520px){.daily{grid-template-columns:1fr}}main{padding:32px 24px;animation:fadeUp .45s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.hero{padding:44px 40px;border-radius:28px;box-shadow:0 24px 60px rgba(139,92,246,.30), inset 0 1px 0 rgba(255,255,255,.12);position:relative;overflow:hidden}
+.hero::after{content:"";position:absolute;right:-70px;top:-70px;width:240px;height:240px;background:radial-gradient(circle,rgba(236,72,153,.45),transparent 70%);pointer-events:none}
+.hero>p:first-child{display:inline-block;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:6px 12px;font-size:.8rem;letter-spacing:.08em}
+.hero h1{font-size:2.4rem;line-height:1.15}
+.card{border-radius:20px;padding:24px;box-shadow:0 16px 40px rgba(0,0,0,.45);transition:transform .18s ease, box-shadow .18s ease}
+.card:hover{transform:translateY(-2px);box-shadow:0 20px 48px rgba(0,0,0,.52)}
+.grid{gap:16px}
+button,.btn{padding:12px 24px;box-shadow:0 10px 26px rgba(139,92,246,.4);transition:filter .15s ease, transform .15s ease}
+button:hover,.btn:hover{filter:brightness(1.12)}
+button:active,.btn:active{transform:scale(.98)}
+input,select,textarea{padding:12px}
+th{font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+nav a{transition:background .15s ease, border-color .15s ease}
+@media(prefers-reduced-motion:reduce){main{animation:none}.card,.card:hover{transform:none;transition:none}}
+@media(max-width:520px){.hero{padding:26px 20px}.hero h1{font-size:1.7rem}main{padding:20px 14px}}</style></head><body>
 <header><a href="/"><strong>Live Meeting</strong></a><div>Text chat, mail and appointments — in one place.</div>{{ nav|safe }}</header>
 <main>{{ body|safe }}</main>
 <footer>Live Meeting web version &middot; Text chat only — this is not video calling &middot; Demo data only</footer>
