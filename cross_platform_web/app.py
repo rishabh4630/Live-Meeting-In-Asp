@@ -279,7 +279,7 @@ table{width:100%;border-collapse:collapse}th,td{padding:9px 10px;border-bottom:1
 .chatlog{display:flex;flex-direction:column;gap:10px;margin:14px 0}
 .msg{border:1px solid var(--line);border-radius:16px;padding:10px 14px;background:var(--surface2);max-width:85%}
 .msg.mine{background:linear-gradient(100deg,var(--violet),#7C3AED);border-color:transparent;margin-left:auto}
-@media(max-width:520px){.grid{grid-template-columns:1fr}main{padding:16px 12px}.hero{padding:22px 18px}}</style></head><body>
+@media(max-width:520px){.grid{grid-template-columns:1fr}main{padding:16px 12px}.hero{padding:22px 18px}}.daily{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px}@media(max-width:520px){.daily{grid-template-columns:1fr}}</style></head><body>
 <header><a href="/"><strong>Live Meeting</strong></a><div>Text chat, mail and appointments — in one place.</div>{{ nav|safe }}</header>
 <main>{{ body|safe }}</main>
 <footer>Live Meeting web version &middot; Text chat only — this is not video calling &middot; Demo data only</footer>
@@ -310,11 +310,13 @@ def home():
     room_cards = "".join(
         f'<div class="card"><h3>{esc(r["name"])}</h3>'
         f'<p><a class="btn" href="/chat/{r["id"]}">Join chat</a></p></div>' for r in rooms)
+    daily_city = (u["city"] if u and u["city"] else "Lucknow").replace('"', "").replace("'", "")
     body = f"""<div class="hero"><p>BUS &amp; MEETING — TEXT CHAT, MAIL &amp; APPOINTMENTS</p>
     <h1>Meet, message and plan — in one place.</h1>
     <p>Register, send internal mail, book appointments and join a live text chat room.
     This is text chat only, not video calling.</p>
     <p><a class="btn" href="/chat">Open Chat</a> <a class="btn secondary" href="/appointments">Appointments</a></p></div>
+    <div class="daily"><div class="card"><h3>Today in your city</h3><p id="daily-weather" class="muted">Loading weather...</p></div><div class="card"><h3>Meeting icebreaker</h3><p id="daily-tip" class="muted">Loading...</p></div></div>
     <div class="grid">
       <div class="card"><h3>Users</h3><p><b>{stats["users"]}</b></p></div>
       <div class="card"><h3>Chat rooms</h3><p><b>{stats["rooms"]}</b></p></div>
@@ -325,7 +327,26 @@ def home():
     <div class="card"><h2>What this is</h2><p class="muted">A web remake of the original
     ASP.NET Live Meeting project. The original used SQL Server and Web Forms;
     this version uses SQLite and Flask, so it runs on Windows, macOS and Linux.
-    Chat here is live text chat in a room — it does not start a video call.</p></div>"""
+    Chat here is live text chat in a room — it does not start a video call.</p></div>
+    <script>
+    function esc(s){{return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}}
+    function wmoLabel(c){{if(c===0)return "Clear sky";if(c===1)return "Mainly clear";if(c===2)return "Partly cloudy";if(c===3)return "Overcast";if(c===45||c===48)return "Foggy";if(c===51||c===53||c===55)return "Drizzle";if(c===61||c===63||c===65)return "Rain";if(c===71||c===73||c===75)return "Snow";if(c===80||c===81||c===82)return "Rain showers";if(c===95)return "Thunderstorm";return "Weather update";}}
+    (function(){{
+      var city="{daily_city}";
+      var w=document.getElementById("daily-weather"),tip=document.getElementById("daily-tip");
+      if(!w||!tip)return;
+      fetch("https://geocoding-api.open-meteo.com/v1/search?name="+encodeURIComponent(city)+"&count=1").then(function(r){{return r.json();}}).then(function(g){{
+        if(!g.results||!g.results.length)throw new Error("no city");
+        var lat=g.results[0].latitude,lon=g.results[0].longitude,name=g.results[0].name;
+        return fetch("https://api.open-meteo.com/v1/forecast?latitude="+lat+"&longitude="+lon+"&current=temperature_2m,weather_code&timezone=auto").then(function(r){{return r.json();}}).then(function(f){{
+          w.innerHTML="<b>"+esc(name)+"</b><br>"+Math.round(f.current.temperature_2m)+"°C, "+wmoLabel(f.current.weather_code)+" — good to know before you step out for a meeting.";
+        }});
+      }}).catch(function(){{w.innerHTML="Weather unavailable right now.";}});
+      fetch("https://api.adviceslip.com/advice").then(function(r){{return r.json();}}).then(function(d){{
+        tip.innerHTML="“"+esc(d.slip.advice)+"”";
+      }}).catch(function(){{tip.innerHTML="Icebreaker unavailable right now.";}});
+    }})();
+    </script>"""
     return page("Home", body, u)
 
 
