@@ -279,7 +279,7 @@ table{width:100%;border-collapse:collapse}th,td{padding:9px 10px;border-bottom:1
 .chatlog{display:flex;flex-direction:column;gap:10px;margin:14px 0}
 .msg{border:1px solid var(--line);border-radius:16px;padding:10px 14px;background:var(--surface2);max-width:85%}
 .msg.mine{background:linear-gradient(100deg,var(--violet),#7C3AED);border-color:transparent;margin-left:auto}
-@media(max-width:520px){.grid{grid-template-columns:1fr}main{padding:16px 12px}.hero{padding:22px 18px}}.daily{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px}@media(max-width:520px){.daily{grid-template-columns:1fr}}</style></head><body>
+@media(max-width:520px){.grid{grid-template-columns:1fr}main{padding:16px 12px}.hero{padding:22px 18px}}.daily{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px}@media(max-width:520px){.daily{grid-template-columns:1fr}}</style></head><body>
 <header><a href="/"><strong>Live Meeting</strong></a><div>Text chat, mail and appointments — in one place.</div>{{ nav|safe }}</header>
 <main>{{ body|safe }}</main>
 <footer>Live Meeting web version &middot; Text chat only — this is not video calling &middot; Demo data only</footer>
@@ -311,12 +311,13 @@ def home():
         f'<div class="card"><h3>{esc(r["name"])}</h3>'
         f'<p><a class="btn" href="/chat/{r["id"]}">Join chat</a></p></div>' for r in rooms)
     daily_city = (u["city"] if u and u["city"] else "Lucknow").replace('"', "").replace("'", "")
+    daily_tz = {"USA": "America/New_York", "UK": "Europe/London"}.get(u["country"] if u else "", "Asia/Kolkata")
     body = f"""<div class="hero"><p>BUS &amp; MEETING — TEXT CHAT, MAIL &amp; APPOINTMENTS</p>
     <h1>Meet, message and plan — in one place.</h1>
     <p>Register, send internal mail, book appointments and join a live text chat room.
     This is text chat only, not video calling.</p>
     <p><a class="btn" href="/chat">Open Chat</a> <a class="btn secondary" href="/appointments">Appointments</a></p></div>
-    <div class="daily"><div class="card"><h3>Today in your city</h3><p id="daily-weather" class="muted">Loading weather...</p></div><div class="card"><h3>Meeting icebreaker</h3><p id="daily-tip" class="muted">Loading...</p></div></div>
+    <div class="daily"><div class="card"><h3>Today in your city</h3><p id="daily-weather" class="muted">Loading weather...</p></div><div class="card"><h3>Meeting icebreaker</h3><p id="daily-tip" class="muted">Loading...</p></div><div class="card"><h3>Meeting time now</h3><p id="daily-clock" class="muted">Loading time...</p></div></div>
     <div class="grid">
       <div class="card"><h3>Users</h3><p><b>{stats["users"]}</b></p></div>
       <div class="card"><h3>Chat rooms</h3><p><b>{stats["rooms"]}</b></p></div>
@@ -345,6 +346,12 @@ def home():
       fetch("https://api.adviceslip.com/advice").then(function(r){{return r.json();}}).then(function(d){{
         tip.innerHTML="“"+esc(d.slip.advice)+"”";
       }}).catch(function(){{tip.innerHTML="Icebreaker unavailable right now.";}});
+      var ck=document.getElementById("daily-clock");
+      if(ck){{
+        fetch("https://timeapi.io/api/time/current/zone?timeZone="+encodeURIComponent("{daily_tz}")).then(function(r){{return r.json();}}).then(function(d){{
+          ck.innerHTML="<b>"+esc(d.time)+"</b> · "+esc(d.dayOfWeek)+" · "+esc("{daily_tz}");
+        }}).catch(function(){{ck.innerHTML="Time unavailable right now.";}});
+      }}
     }})();
     </script>"""
     return page("Home", body, u)
@@ -627,15 +634,50 @@ def appointments():
     rows = db.execute(q, args).fetchall()
     rows_html = "".join(
         f'<tr><td>{esc(r["title"])}</td><td>{esc(r["with_user"])}</td>'
-        f'<td>{esc(r["appt_date"])} {esc(r["appt_time"])}</td><td>{esc(r["status"])}</td>'
+        f'<td>{esc(r["appt_date"])} {esc(r["appt_time"])}</td><td>{esc(r["status"])}</td><td class="fc" data-date="{esc(r["appt_date"])}">Loading...</td>'
         f'<td><form method="post" action="/appointments/{r["id"]}/cancel">'
         f'<button class="secondary">Cancel</button></form></td></tr>' for r in rows)
-    return page("Appointments", f"""<div class="card"><h2>Appointments</h2>
+    appt_city = (u["city"] if u and u["city"] else "Lucknow").replace('"', "").replace("'", "")
+    _body = f"""<div class="card" id="appt-page" data-city="{appt_city}"><h2>Appointments</h2>
     <form method="get"><label>Calendar — show date</label>
     <input type="date" name="date" value="{esc(sel_date)}">
     <p><button>Show</button> <a class="btn secondary" href="/appointments/new">New appointment</a></p></form>
-    <div class="table-wrap"><table><tr><th>Title</th><th>With</th><th>Date &amp; time</th><th>Status</th><th></th></tr>
-    {rows_html or '<tr><td colspan="5">No appointments yet.</td></tr>'}</table></div></div>""")
+    <div class="table-wrap"><table><tr><th>Title</th><th>With</th><th>Date &amp; time</th><th>Status</th><th>Forecast</th><th></th></tr>
+    {rows_html or '<tr><td colspan="6">No appointments yet.</td></tr>'}</table></div></div>"""
+    _body += """<script>
+    function wmoLabel2(c){if(c===0)return "Clear sky";if(c===1)return "Mainly clear";if(c===2)return "Partly cloudy";if(c===3)return "Overcast";if(c===45||c===48)return "Foggy";if(c===51||c===53||c===55)return "Drizzle";if(c===61||c===63||c===65)return "Rain";if(c===71||c===73||c===75)return "Snow";if(c===80||c===81||c===82)return "Rain showers";if(c===95)return "Thunderstorm";return "Weather update";}
+    (function(){
+      var pg=document.getElementById("appt-page");
+      var city=pg?pg.getAttribute("data-city"):"Lucknow";
+      var cells=document.querySelectorAll("td.fc");
+      if(!cells.length)return;
+      var dates=[];
+      cells.forEach(function(c){if(dates.indexOf(c.getAttribute("data-date"))<0)dates.push(c.getAttribute("data-date"));});
+      var today=new Date();today.setHours(0,0,0,0);
+      var max=new Date(today);max.setDate(max.getDate()+16);
+      fetch("https://geocoding-api.open-meteo.com/v1/search?name="+encodeURIComponent(city)+"&count=1").then(function(r){return r.json();}).then(function(g){
+        if(!g.results||!g.results.length)throw new Error("no city");
+        var lat=g.results[0].latitude,lon=g.results[0].longitude;
+        dates.forEach(function(ds){
+          var d=new Date(ds+"T00:00:00");
+          if(isNaN(d.getTime())||d<today||d>max){
+            cells.forEach(function(c){if(c.getAttribute("data-date")===ds)c.textContent="Forecast within 16 days only";});
+            return;
+          }
+          fetch("https://api.open-meteo.com/v1/forecast?latitude="+lat+"&longitude="+lon+"&daily=temperature_2m_max,temperature_2m_min,weather_code&timezone=auto&start_date="+ds+"&end_date="+ds).then(function(r){return r.json();}).then(function(f){
+            if(!f.daily||!f.daily.time||!f.daily.time.length)throw new Error("no forecast");
+            var txt=Math.round(f.daily.temperature_2m_min[0])+"°–"+Math.round(f.daily.temperature_2m_max[0])+"°C, "+wmoLabel2(f.daily.weather_code[0]);
+            cells.forEach(function(c){if(c.getAttribute("data-date")===ds)c.textContent=txt;});
+          }).catch(function(){
+            cells.forEach(function(c){if(c.getAttribute("data-date")===ds)c.textContent="Forecast unavailable";});
+          });
+        });
+      }).catch(function(){
+        cells.forEach(function(c){c.textContent="Forecast unavailable";});
+      });
+    })();
+    </script>"""
+    return page("Appointments", _body)
 
 
 @app.route("/appointments/new", methods=["GET", "POST"])
