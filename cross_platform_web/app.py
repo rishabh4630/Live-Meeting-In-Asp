@@ -31,11 +31,14 @@ Demo accounts (change the passwords after first login in a real deploy):
 Passwords are stored hashed with Werkzeug, never in plain text.
 """
 
+import hashlib
 import html
 import os
 import re
+import secrets
+import smtplib
 import sqlite3
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 
 from flask import Flask, flash, g, redirect, render_template_string, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -189,6 +192,15 @@ def init_db():
         user_id INTEGER NOT NULL, login_at TEXT DEFAULT (datetime('now')),
         ip TEXT DEFAULT ''
     );
+    CREATE TABLE IF NOT EXISTS pending_users (
+        email TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        password_hash TEXT NOT NULL,
+        otp_hash TEXT NOT NULL,
+        expires_at TEXT NOT NULL,
+        attempts INTEGER NOT NULL DEFAULT 0,
+        sent_at TEXT NOT NULL
+    );
     """
     if DATABASE_URL and psycopg is not None:
         _schema = _schema.replace(
@@ -285,6 +297,83 @@ def current_user():
 def admin_email():
     # Owner admin, set only via environment (never in code). Unset = nobody auto-admin.
     return os.environ.get("ADMIN_EMAIL", "").strip().lower()
+
+
+# ---------------------------------------------------------------------------
+# Email verification (OTP) -- mirrors the Airline app's implementation.
+# Configure with environment variables (never in code):
+#   SMTP_HOST (default smtp.gmail.com), SMTP_PORT (default 587),
+#   SMTP_USER (your Gmail address), SMTP_PASS (a Gmail App Password --
+#   Google Account -> Security -> 2-Step Verification -> App passwords),
+#   SMTP_FROM (optional, defaults to SMTP_USER).
+# OTP is mandatory: when SMTP_USER/SMTP_PASS are unset, signup is blocked
+# and NO account is created — the user must configure mail first, then
+# sign up again. This is deliberate: an account must never be created
+# without a verified mailbox.
+# ---------------------------------------------------------------------------
+def _mail_configured():
+    return bool(os.environ.get("SMTP_USER") and os.environ.get("SMTP_PASS"))
+
+
+def _send_otp_email(to_email, otp):
+    """Send the 6-digit OTP via SMTP. Returns True on success."""
+    host = os.environ.get("SMTP_HOST", "smtp.gmail.com")
+    try:
+        port = int(os.environ.get("SMTP_PORT", "587"))
+    except ValueError:
+        port = 587
+    user = os.environ.get("SMTP_USER", "")
+    # App passwords are shown with spaces ("xxxx xxxx xxxx xxxx"); Gmail
+    # accepts them without spaces, so strip spaces before logging in.
+    pw = os.environ.get("SMTP_PASS", "").replace(" ", "")
+    sender = os.environ.get("SMTP_FROM", user)
+    if not user or not pw:
+        return False
+    msg = (
+        f"From: {sender}\r\nTo: {to_email}\r\n"
+        "Subject: Your verification code\r\n\r\n"
+        f"Your verification code is: {otp}\r\n\r\n"
+        "It is valid for 10 minutes. If you did not request this, "
+        "please ignore this email.\r\n"
+    )
+    try:
+        with smtplib.SMTP(host, port, timeout=10) as server:
+            server.starttls()
+            server.login(user, pw)
+            server.sendmail(sender, [to_email], msg)
+        return True
+    except Exception as e:
+        # Visible in the terminal running Flask, so a failed send is no
+        # longer silent. The exception never contains the password.
+        print(f"[otp] could not send verification email to {to_email}: {e}")
+        return False
+
+
+def _new_otp():
+    return "".join(secrets.choice("0123456789") for _ in range(6))
+
+
+def _otp_hash(otp):
+    return hashlib.sha256(otp.encode()).hexdigest()
+
+
+def _utcnow():
+    return datetime.now(timezone.utc)
+
+
+def _start_pending(db, name, email, password_hash):
+    """(Re)create the pending signup and email a fresh OTP. Returns True if sent."""
+    otp = _new_otp()
+    now = _utcnow()
+    db.execute("DELETE FROM pending_users WHERE email=?", (email,))
+    db.execute(
+        "INSERT INTO pending_users (email, name, password_hash, otp_hash, expires_at, attempts, sent_at)"
+        " VALUES (?,?,?,?,?,0,?)",
+        (email, name, password_hash, _otp_hash(otp),
+         (now + timedelta(minutes=10)).isoformat(), now.isoformat()),
+    )
+    db.commit()
+    return _send_otp_email(email, otp)
 
 
 def require_login():
@@ -543,25 +632,91 @@ def signup():
             flash("Please enter your name and a valid email address.")
         elif not valid_password(pw):
             flash("Password must be 8+ characters with uppercase, lowercase and a digit.")
+        elif get_db().execute("SELECT 1 FROM users WHERE email=?", (email,)).fetchone():
+            flash("That email is already registered.")
         else:
-            db = get_db()
-            try:
-                role = "admin" if (admin_email() and email == admin_email()) else "user"
-                db.execute(
-                    "INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)",
-                    (name, email, generate_password_hash(pw), role))
-                db.commit()
-                flash("Account created. Please log in.")
-                return redirect(url_for("login"))
-            except DB_INTEGRITY_ERROR:
-                flash("That email is already registered.")
+            # No account is created until the email is verified: a pending
+            # signup is stored, a 6-digit code is emailed, and /verify
+            # creates the account only after the code checks out.
+            if not _mail_configured():
+                flash("Email verification is not set up on this server yet, so no account was created. Please set SMTP_USER and SMTP_PASS, restart the app, and sign up again.")
+                return redirect(url_for("signup"))
+            else:
+                sent = _start_pending(get_db(), name, email, generate_password_hash(pw))
+                session["pending_email"] = email
+                if sent:
+                    flash("We have emailed you a 6-digit verification code. Please enter it below.")
+                else:
+                    flash("We could not send the verification email, so your account has not been created yet. Please check the mail setup (SMTP_USER / SMTP_PASS) and tap Resend code below.")
+                return redirect(url_for("verify"))
     return page("Sign Up", f"""<div class="card"><h2>Sign Up</h2><form method="post">
     {field("Full name", "name", required=True)}
     {field("Email", "email", typ="email", required=True)}
     {field("Password", "password", typ="password", required=True)}
     <p class="muted">Password: 8+ characters with uppercase, lowercase and a digit.</p>
+    <p class="muted">We'll email a 6-digit code to verify your email before your account is created.</p>
     <p><button>Create account</button></p></form>
     <p>Already have an account? <a href="/login">Log in</a></p></div>""")
+
+
+@app.route("/verify", methods=["GET", "POST"])
+def verify():
+    email = session.get("pending_email", "")
+    db = get_db()
+    row = db.execute("SELECT * FROM pending_users WHERE email=?", (email,)).fetchone() if email else None
+    if request.method == "POST" and request.form.get("action") == "resend":
+        if row is None:
+            flash("No pending signup found. Please sign up again.")
+            return redirect(url_for("signup"))
+        if (_utcnow() - datetime.fromisoformat(row["sent_at"])).total_seconds() < 60:
+            flash("Please wait a minute before requesting a new code.")
+            return redirect(url_for("verify"))
+        sent = _start_pending(db, row["name"], email, row["password_hash"])
+        flash("A new verification code has been emailed." if sent else "We could not send the verification email. Please try resending again.")
+        return redirect(url_for("verify"))
+    if request.method == "POST":
+        code = request.form.get("code", "").strip()
+        if row is None:
+            flash("No pending signup found. Please sign up again.")
+            return redirect(url_for("signup"))
+        if _utcnow() > datetime.fromisoformat(row["expires_at"]):
+            db.execute("DELETE FROM pending_users WHERE email=?", (email,)); db.commit()
+            session.pop("pending_email", None)
+            flash("This code has expired. Please sign up again.")
+            return redirect(url_for("signup"))
+        if row["attempts"] >= 5:
+            db.execute("DELETE FROM pending_users WHERE email=?", (email,)); db.commit()
+            session.pop("pending_email", None)
+            flash("Too many incorrect attempts. Please sign up again.")
+            return redirect(url_for("signup"))
+        if _otp_hash(code) != row["otp_hash"]:
+            db.execute("UPDATE pending_users SET attempts = attempts + 1 WHERE email=?", (email,)); db.commit()
+            flash("Incorrect code. Please try again.")
+            return redirect(url_for("verify"))
+        db.execute("DELETE FROM pending_users WHERE email=?", (email,))
+        role = "admin" if (admin_email() and email == admin_email()) else "user"
+        db.execute(
+            "INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)",
+            (row["name"], email, row["password_hash"], role))
+        db.commit()
+        session.pop("pending_email", None)
+        # Re-select by email for the new id: the Postgres cursor wrapper
+        # has no lastrowid, and this works on both database paths.
+        user = db.execute("SELECT id FROM users WHERE email=?", (email,)).fetchone()
+        session["user_id"] = user["id"]
+        flash(f"Welcome, {row['name']}! Your email has been verified and your account has been created.")
+        return redirect(url_for("home"))
+    if row is None:
+        flash("No pending signup found. Please sign up again.")
+        return redirect(url_for("signup"))
+    return page("Verify your email", f"""<div class="card"><h2>Verify your email</h2>
+    <p class="muted">We sent a 6-digit code to {esc(email)}. It is valid for 10 minutes.</p>
+    <form method="post">
+    {field("Verification code", "code", typ="text", required=True)}
+    <p><button>Verify</button></p></form>
+    <form method="post" style="margin-top:12px"><input type="hidden" name="action" value="resend">
+    <p><button class="secondary">Resend code</button></p></form>
+    <p>Wrong email? <a href="/signup">Sign up again</a></p></div>""")
 
 
 @app.route("/login", methods=["GET", "POST"])
