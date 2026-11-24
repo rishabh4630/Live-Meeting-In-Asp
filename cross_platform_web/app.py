@@ -40,8 +40,10 @@ import smtplib
 import sqlite3
 from datetime import date, datetime, timedelta, timezone
 
-from flask import Flask, flash, g, redirect, render_template_string, request, session, url_for
+from flask import Flask, flash, g, jsonify, redirect, render_template_string, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
+
+import firebase_auth
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATABASE = os.environ.get("LM_DATABASE", os.path.join(BASE_DIR, "live_meeting.db"))
@@ -218,7 +220,7 @@ def init_db():
             "SELECT column_name FROM information_schema.columns WHERE table_name='users'").fetchall()]
     else:
         cols = [r[1] for r in db.execute("PRAGMA table_info(users)").fetchall()]
-    for col, ddl in [("interest", "TEXT DEFAULT ''"), ("income", "TEXT DEFAULT ''")]:
+    for col, ddl in [("interest", "TEXT DEFAULT ''"), ("income", "TEXT DEFAULT ''"), ("firebase_uid", "TEXT")]:
         if col not in cols:
             db.execute(f"ALTER TABLE users ADD COLUMN {col} {ddl}")
     seed(db)
@@ -656,7 +658,7 @@ def signup():
     <p class="muted">Password: 8+ characters with uppercase, lowercase and a digit.</p>
     <p class="muted">We'll email a 6-digit code to verify your email before your account is created.</p>
     <p><button>Create account</button></p></form>
-    <p>Already have an account? <a href="/login">Log in</a></p></div>""")
+    <p>Already have an account? <a href="/login">Log in</a></p></div>""" + firebase_auth.login_html())
 
 
 @app.route("/verify", methods=["GET", "POST"])
@@ -742,7 +744,7 @@ def login():
     {field("Password", "password", typ="password", required=True)}
     <p><button>Log in</button></p></form>
     <p class="muted">Demo admin: admin@livemeeting.demo / Admin123 (demo only).</p>
-    <p>No account? <a href="/signup">Sign up</a></p></div>""")
+    <p>No account? <a href="/signup">Sign up</a></p></div>""" + firebase_auth.login_html())
 
 
 @app.route("/logout")
@@ -750,6 +752,79 @@ def logout():
     session.clear()
     flash("Logged out.")
     return redirect(url_for("home"))
+
+
+# --------------------------------------------------------------------------
+# Firebase sign-in (optional -- see firebase_auth.py)
+# The browser signs in with the Firebase JS SDK (Google / Firebase email)
+# and posts the ID token here. The token is verified with firebase-admin;
+# only tokens whose email_verified claim is true are accepted, so an
+# account must click the confirmation link in its email first. On
+# success the matching local user is found or created and the SAME
+# Flask session is set as the normal login, so chat, mail, appointments
+# and admin checks work unchanged. When Firebase is not configured this
+# endpoint answers 503 and the login/signup pages show no Firebase
+# buttons.
+# --------------------------------------------------------------------------
+def _firebase_find_or_create_user(db, email, name, uid):
+    """Find the local user for a verified Firebase sign-in, or create one.
+
+    Links by Firebase uid first, then by email. New users are created
+    with a random, unusable password hash: they sign in through
+    Firebase, never with a local password.
+    """
+    row = None
+    if uid:
+        try:
+            row = db.execute(
+                "SELECT * FROM users WHERE firebase_uid=?", (uid,)).fetchone()
+        except Exception:
+            row = None  # very old DB without the firebase_uid column
+    if row is None:
+        row = db.execute("SELECT * FROM users WHERE email=?", (email,)).fetchone()
+    if row is not None:
+        if uid and not row["firebase_uid"]:
+            db.execute("UPDATE users SET firebase_uid=? WHERE id=?", (uid, row["id"]))
+            db.commit()
+        return row
+    db.execute(
+        "INSERT INTO users (name, email, password_hash, role, firebase_uid)"
+        " VALUES (?,?,?,?,?)",
+        (name, email, generate_password_hash(secrets.token_urlsafe(32)),
+         "user", uid or None),
+    )
+    db.commit()
+    return db.execute("SELECT * FROM users WHERE email=?", (email,)).fetchone()
+
+
+@app.route("/auth/firebase", methods=["POST"])
+def auth_firebase():
+    data = request.get_json(silent=True) or {}
+    id_token = data.get("idToken", "")
+    if not id_token:
+        return jsonify({"ok": False, "error": "Missing idToken."}), 400
+    try:
+        claims = firebase_auth.verify_id_token(id_token)
+    except firebase_auth.FirebaseNotConfigured as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 503
+    except firebase_auth.InvalidFirebaseToken as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 401
+    if claims.get("email_verified") is not True:
+        return jsonify({"ok": False, "error": "Please confirm your email first. We sent a confirmation link to your email."}), 403
+    email = (claims.get("email") or "").strip().lower()
+    if not email:
+        return jsonify({"ok": False, "error": "This Firebase account has no email address."}), 400
+    name = (claims.get("name") or "").strip() or email.split("@")[0]
+    db = get_db()
+    user = _firebase_find_or_create_user(db, email, name, claims.get("uid") or "")
+    if admin_email() and email == admin_email() and user["role"] != "admin":
+        db.execute("UPDATE users SET role='admin' WHERE id=?", (user["id"],))
+        db.commit()
+    session["user_id"] = user["id"]
+    db.execute("INSERT INTO login_history (user_id, ip) VALUES (?, ?)",
+               (user["id"], request.remote_addr or ""))
+    db.commit()
+    return jsonify({"ok": True, "name": user["name"]})
 
 
 @app.route("/profile", methods=["GET", "POST"])
